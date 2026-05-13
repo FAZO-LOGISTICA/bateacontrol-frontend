@@ -865,6 +865,130 @@ function ModalClusteringResultado({ resultado, onClose }) {
   );
 }
 
+// ── MODAL ASIGNAR BATEA CON DÍAS DE USO ──────────────────────────────────────
+function ModalAsignarBatea({ onClose, onConfirmar }) {
+  const [diasUso, setDiasUso] = useState(7);
+  const [preview, setPreview] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const opciones = [3, 5, 7, 10, 14, 21, 30, 45, 60];
+
+  useEffect(() => {
+    const cargar = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/clustering/preview?radio_metros=100`);
+        if (res.ok) { const d = await res.json(); setPreview(d); }
+      } catch {}
+      setCargando(false);
+    };
+    cargar();
+  }, []);
+
+  const fechaTermino = new Date();
+  fechaTermino.setDate(fechaTermino.getDate() + diasUso);
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:2000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:520, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+
+        {/* Header */}
+        <div style={{ padding:"20px 24px", background:C.azul, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <h2 style={{ margin:0, color:"#FFF", fontSize:17, fontWeight:700 }}>🗑️ Asignar Bateas Comunitarias</h2>
+            <p style={{ margin:"2px 0 0", color:"#90CAF9", fontSize:13 }}>Configure los días de uso antes de asignar</p>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:34, height:34, borderRadius:"50%", cursor:"pointer", fontSize:20 }}>×</button>
+        </div>
+
+        <div style={{ padding:24, display:"flex", flexDirection:"column", gap:18 }}>
+
+          {/* Vista previa clustering */}
+          {cargando ? (
+            <div style={{ textAlign:"center", padding:16, color:"#888", fontSize:14 }}>⏳ Analizando solicitudes pendientes...</div>
+          ) : preview && (
+            <div style={{ background:C.azulS, borderRadius:10, padding:"14px 16px", border:"1px solid #BBDEFB" }}>
+              <div style={{ fontWeight:700, color:C.azul, fontSize:13, marginBottom:10 }}>📊 Vista previa del clustering</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div style={{ background:"#FFF", borderRadius:8, padding:"10px 14px", textAlign:"center" }}>
+                  <div style={{ fontSize:26, fontWeight:700, color:C.azul }}>{preview.total_pendientes}</div>
+                  <div style={{ fontSize:12, color:"#666" }}>Solicitudes pendientes</div>
+                </div>
+                <div style={{ background:"#FFF", borderRadius:8, padding:"10px 14px", textAlign:"center" }}>
+                  <div style={{ fontSize:26, fontWeight:700, color:C.verde }}>{preview.grupos_estimados}</div>
+                  <div style={{ fontSize:12, color:"#666" }}>Grupos a crear</div>
+                </div>
+              </div>
+              {preview.grupos?.length > 0 && (
+                <div style={{ marginTop:10, maxHeight:100, overflowY:"auto" }}>
+                  {preview.grupos.map((g, i) => (
+                    <div key={i} style={{ fontSize:12, color:"#555", padding:"3px 0", borderBottom:"1px solid #E3F2FD" }}>
+                      Grupo {i+1}: {g.vecinos} vecino(s) — máx {g.dias_max} días pendiente
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Selector días */}
+          <div style={{ background:"#F8FAFE", borderRadius:10, padding:16 }}>
+            <div style={{ fontWeight:700, fontSize:14, color:"#333", marginBottom:12 }}>📅 Días de uso de la batea</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:14 }}>
+              {opciones.map(d => (
+                <button key={d} onClick={() => setDiasUso(d)} style={{
+                  padding:"8px 14px", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer",
+                  background: diasUso===d ? C.azul : "#FFF",
+                  color: diasUso===d ? "#FFF" : "#555",
+                  border: diasUso===d ? `2px solid ${C.azul}` : "1px solid #DDD",
+                  transition:"all 0.15s"
+                }}>
+                  {d} días
+                </button>
+              ))}
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:13, color:"#555" }}>O ingresa manualmente:</span>
+              <input type="number" min={1} max={365} value={diasUso}
+                onChange={e => setDiasUso(Math.max(1, Math.min(365, parseInt(e.target.value)||1)))}
+                style={{ width:80, padding:"8px 10px", borderRadius:8, border:"1px solid #DDD", fontSize:14, textAlign:"center", outline:"none" }} />
+              <span style={{ fontSize:13, color:"#555" }}>días</span>
+            </div>
+          </div>
+
+          {/* Resumen fechas */}
+          <div style={{ background:C.verdeS, border:"1px solid #C8E6C9", borderRadius:10, padding:"12px 16px" }}>
+            <div style={{ fontSize:13, color:C.verde, display:"flex", flexDirection:"column", gap:4 }}>
+              <div><strong>📅 Fecha inicio:</strong> {new Date().toLocaleDateString("es-CL")}</div>
+              <div><strong>📅 Fecha término:</strong> {fechaTermino.toLocaleDateString("es-CL")}</div>
+              <div><strong>⏱ Duración total:</strong> {diasUso} días</div>
+            </div>
+          </div>
+
+          <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
+            ⚠️ El sistema priorizará automáticamente las solicitudes más antiguas y críticas. Las bateas se asignarán solo a vecinos sin batea activa cercana.
+          </div>
+
+          {/* Botones */}
+          <div style={{ display:"flex", gap:12, justifyContent:"flex-end" }}>
+            <button onClick={onClose} style={{ padding:"10px 24px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:14, cursor:"pointer" }}>Cancelar</button>
+            <button
+              onClick={() => onConfirmar(diasUso)}
+              disabled={!preview || preview.total_pendientes === 0}
+              style={{
+                padding:"10px 28px", borderRadius:8, border:"none",
+                background: (!preview || preview.total_pendientes === 0) ? "#888" : C.azul,
+                color:"#FFF", fontSize:14, fontWeight:700,
+                cursor: (!preview || preview.total_pendientes === 0) ? "not-allowed" : "pointer",
+                display:"flex", alignItems:"center", gap:8
+              }}>
+              🗑️ Confirmar Asignación
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [activeView, setActiveView] = useState("dashboard");
   const [solicitudes, setSolicitudes] = useState([]);
@@ -874,6 +998,7 @@ export default function App() {
   const [kpis, setKpis] = useState({});
   const [loading, setLoading] = useState(true);
   const [modalActivo, setModalActivo] = useState(null);
+  const [modalAsignar, setModalAsignar] = useState(false);
   const [clustering, setClustering] = useState(false);
   const [resultadoClustering, setResultadoClustering] = useState(null);
 
@@ -897,14 +1022,29 @@ export default function App() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
-  const handleAsignarBatea = useCallback(async () => {
+  // Abre el modal de configuración antes de asignar
+  const handleAsignarBatea = () => setModalAsignar(true);
+
+  // Ejecuta clustering real con días de uso definidos por el admin
+  const handleConfirmarAsignacion = useCallback(async (diasUso) => {
+    setModalAsignar(false);
     setClustering(true);
     try {
-      const res = await fetch(`${API_URL}/api/clustering/ejecutar?radio_metros=100`, { method:"POST" });
+      const res = await fetch(`${API_URL}/api/clustering/ejecutar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ radio_metros: 100, dias_uso: diasUso })
+      });
       const data = await res.json();
-      if (res.ok) { setResultadoClustering(data); await cargarDatos(); }
-      else alert("❌ Error: "+(data.detail||"Error desconocido"));
-    } catch { alert("❌ Error de conexión"); }
+      if (res.ok) {
+        setResultadoClustering(data);
+        await cargarDatos();
+      } else {
+        alert("❌ Error: " + (data.detail || "Error desconocido"));
+      }
+    } catch {
+      alert("❌ Error de conexión con el servidor");
+    }
     setClustering(false);
   }, [cargarDatos]);
 
@@ -934,6 +1074,7 @@ export default function App() {
       {modalActivo==="batea"       && <ModalBatea       onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} />}
       {modalActivo==="desmalezado" && <ModalDesmalezado onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} />}
       {modalActivo==="camino"      && <ModalCamino      onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} />}
+      {modalAsignar && <ModalAsignarBatea onClose={()=>setModalAsignar(false)} onConfirmar={handleConfirmarAsignacion} />}
       {resultadoClustering && <ModalClusteringResultado resultado={resultadoClustering} onClose={()=>setResultadoClustering(null)} />}
     </div>
   );
