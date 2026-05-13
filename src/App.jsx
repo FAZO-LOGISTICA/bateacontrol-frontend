@@ -798,38 +798,170 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
   );
 }
 
-function ViewOperativos({ operativos, loading }) {
+function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onRecargar }) {
+  const [paresDetectados, setParesDetectados] = useState([]);
+  const [modalPar, setModalPar] = useState(null); // par seleccionado para crear operativo
+  const [creando, setCreando] = useState(false);
+
+  // Detectar pares batea+desmalezado cercanos (100m) en el frontend
+  useEffect(() => {
+    const bateasPendientes = solicitudes.filter(s => s.estado === "pendiente" && s.latitud && s.longitud);
+    const desmalezadosPendientes = desmalezados.filter(d => d.estado === "pendiente" && d.latitud && d.longitud);
+
+    const pares = [];
+    const usados = new Set();
+
+    for (const b of bateasPendientes) {
+      for (const d of desmalezadosPendientes) {
+        if (usados.has(b.id) || usados.has(d.id)) continue;
+        const dist = calcDistancia(parseFloat(b.latitud), parseFloat(b.longitud), parseFloat(d.latitud), parseFloat(d.longitud));
+        if (dist <= 100) {
+          pares.push({ batea: b, desmalezado: d, distancia: Math.round(dist) });
+          usados.add(b.id);
+          usados.add(d.id);
+        }
+      }
+    }
+    setParesDetectados(pares);
+  }, [solicitudes, desmalezados]);
+
+  const calcDistancia = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000;
+    const phi1 = lat1 * Math.PI/180, phi2 = lat2 * Math.PI/180;
+    const dphi = (lat2-lat1) * Math.PI/180;
+    const dlambda = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dphi/2)**2 + Math.cos(phi1)*Math.cos(phi2)*Math.sin(dlambda/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  };
+
+  const handleCrearOperativo = async (fechaInicio, diasUso, responsable) => {
+    if (!modalPar) return;
+    setCreando(true);
+    try {
+      // Crear operativo conjunto
+      const res = await fetch(`${API_URL}/api/operativos-conjuntos?solicitud_batea_id=${modalPar.batea.id}&desmalezado_id=${modalPar.desmalezado.id}`, { method:"POST" });
+      const data = await res.json();
+      if (!res.ok) { alert("❌ " + (data.detail||"Error")); setCreando(false); return; }
+
+      // Asignar fechas al desmalezado
+      await fetch(`${API_URL}/api/desmalezados/${modalPar.desmalezado.id}/asignar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ fecha_inicio:fechaInicio, dias_uso:diasUso, responsable })
+      });
+
+      alert(`✅ Operativo Conjunto ${data.codigo} creado\n🗑️ Batea: ${data.numero_batea}\n📅 Inicio: ${new Date(fechaInicio).toLocaleDateString("es-CL")}\n⏱ Duración: ${diasUso} días`);
+      setModalPar(null);
+      onRecargar();
+    } catch { alert("❌ Error de conexión"); }
+    setCreando(false);
+  };
+
   return (
     <div style={{ padding:28 }}>
-      <h1 style={{ margin:"0 0 20px", fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🔧 Operativos Conjuntos</h1>
-      <div style={{ background:"#F3E5F5", border:"1px solid #CE93D8", borderRadius:10, padding:"12px 16px", marginBottom:20, fontSize:13, color:C.morado }}>
-        🔧 Combinan <strong>Batea + Desmalezado</strong> en un mismo punto. Los operarios depositan las ramas directamente en la batea — un solo viaje, dos servicios.
-      </div>
-      {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> :
-        operativos.length===0 ? (
-          <div style={{ textAlign:"center", padding:60, color:"#888" }}>
-            <div style={{ fontSize:48, marginBottom:12 }}>🔧</div>
-            <div style={{ fontSize:16, fontWeight:600 }}>No hay operativos conjuntos</div>
-            <div style={{ fontSize:13, marginTop:6 }}>Se crean automáticamente al registrar un desmalezado cerca de una batea pendiente</div>
+      <h1 style={{ margin:"0 0 8px", fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🔧 Operativos Conjuntos</h1>
+      <p style={{ margin:"0 0 20px", color:"#666", fontSize:14 }}>Batea + Desmalezado en un mismo punto — un solo viaje, dos servicios</p>
+
+      {/* Pares detectados automáticamente */}
+      {paresDetectados.length > 0 && (
+        <div style={{ marginBottom:24 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+            <h2 style={{ margin:0, fontSize:15, fontWeight:700, color:C.morado }}>🎯 Pares detectados automáticamente</h2>
+            <span style={{ background:C.moradoS, color:C.morado, border:`1px solid ${C.morado}44`, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:600 }}>{paresDetectados.length}</span>
           </div>
-        ) : (
-          <div style={{ display:"grid", gap:12 }}>
+          <div style={{ display:"grid", gap:10 }}>
+            {paresDetectados.map((par, i) => (
+              <div key={i} style={{
+                background:"#FFF", border:`2px solid ${C.morado}44`, borderLeft:`5px solid ${C.morado}`,
+                borderRadius:12, padding:"16px 20px",
+                display:"flex", justifyContent:"space-between", alignItems:"center", gap:16
+              }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, fontSize:14, color:C.morado, marginBottom:6 }}>
+                    🔧 Par detectado — {par.distancia}m de distancia
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                    <div style={{ background:C.azulS, borderRadius:8, padding:"10px 14px" }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:C.azul, marginBottom:3 }}>🗑️ BATEA</div>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{par.batea.nombre_vecino}</div>
+                      <div style={{ fontSize:12, color:"#666" }}>{par.batea.direccion}</div>
+                      <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{par.batea.folio} · {par.batea.dias_pendiente}d pendiente</div>
+                    </div>
+                    <div style={{ background:C.verdeS, borderRadius:8, padding:"10px 14px" }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:C.verde, marginBottom:3 }}>🌿 DESMALEZADO</div>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{par.desmalezado.nombre_solicitante||"Sin nombre"}</div>
+                      <div style={{ fontSize:12, color:"#666" }}>{par.desmalezado.direccion}</div>
+                      <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{par.desmalezado.folio} · {par.desmalezado.dias_pendiente}d pendiente</div>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setModalPar(par)}
+                  disabled={creando}
+                  style={{
+                    padding:"10px 18px", borderRadius:10, border:"none",
+                    background:C.morado, color:"#FFF", fontSize:13, fontWeight:700,
+                    cursor:"pointer", whiteSpace:"nowrap",
+                    boxShadow:"0 2px 8px rgba(106,27,154,0.3)"
+                  }}>
+                  🔧 Crear Operativo
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sin pares detectados */}
+      {paresDetectados.length === 0 && !loading && operativos.length === 0 && (
+        <div style={{ background:"#F3E5F5", border:"1px solid #CE93D8", borderRadius:12, padding:32, textAlign:"center", marginBottom:24 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>🔍</div>
+          <div style={{ fontSize:15, fontWeight:600, color:C.morado }}>Sin pares detectados actualmente</div>
+          <div style={{ fontSize:13, color:"#888", marginTop:6, maxWidth:400, margin:"8px auto 0" }}>
+            El sistema detecta automáticamente cuando hay una batea pendiente y un desmalezado pendiente dentro de 100 metros de distancia.
+          </div>
+        </div>
+      )}
+
+      {/* Operativos ya creados */}
+      {operativos.length > 0 && (
+        <div>
+          <h2 style={{ fontSize:15, fontWeight:700, color:"#333", marginBottom:12 }}>📋 Operativos Creados</h2>
+          <div style={{ display:"grid", gap:10 }}>
             {operativos.map(op => (
-              <div key={op.id} style={{ background:C.blanco, border:"1px solid #CE93D8", borderLeft:`4px solid ${C.morado}`, borderRadius:10, padding:"16px 20px" }}>
+              <div key={op.id} style={{
+                background:C.blanco, border:"1px solid #CE93D8",
+                borderLeft:`4px solid ${C.morado}`, borderRadius:10, padding:"14px 18px"
+              }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                   <div>
                     <div style={{ fontWeight:700, fontSize:15, color:C.morado }}>{op.codigo}</div>
-                    <div style={{ fontSize:13, color:"#555", marginTop:4 }}>🗑️ Batea: <strong>{op.numero_batea}</strong> — {op.direccion_batea}</div>
-                    <div style={{ fontSize:13, color:"#555", marginTop:2 }}>🌿 Desmalezado: {op.direccion_desmalezado}</div>
-                    <div style={{ fontSize:12, color:"#888", marginTop:4 }}>Planificado: {op.fecha_planificacion}</div>
+                    <div style={{ fontSize:13, color:"#555", marginTop:4 }}>
+                      🗑️ Batea: <strong>{op.numero_batea}</strong> — {op.direccion_batea}
+                    </div>
+                    <div style={{ fontSize:13, color:"#555", marginTop:2 }}>
+                      🌿 Desmalezado: {op.direccion_desmalezado}
+                    </div>
+                    <div style={{ fontSize:12, color:"#888", marginTop:4 }}>
+                      📅 Planificado: {op.fecha_planificacion}
+                    </div>
                   </div>
                   <Badge estado={op.estado} />
                 </div>
               </div>
             ))}
           </div>
-        )
-      }
+        </div>
+      )}
+
+      {/* Modal crear operativo con fechas */}
+      {modalPar && (
+        <ModalAsignarServicio
+          titulo="🔧 Crear Operativo Conjunto"
+          color={C.morado}
+          onClose={() => setModalPar(null)}
+          onConfirmar={handleCrearOperativo}
+        />
+      )}
     </div>
   );
 }
@@ -1275,7 +1407,7 @@ export default function App() {
       case "bateas":       return <ViewBateas solicitudes={solicitudes} onNueva={()=>setModalActivo("batea")} loading={loading} onAsignarBatea={handleAsignarBatea} clustering={clustering} />;
       case "desmalezados": return <ViewDesmalezados desmalezados={desmalezados} onNuevo={()=>setModalActivo("desmalezado")} loading={loading} onRecargar={cargarDatos} />;
       case "caminos":      return <ViewCaminos caminos={caminos} onNuevo={()=>setModalActivo("camino")} loading={loading} onRecargar={cargarDatos} />;
-      case "operativos":   return <ViewOperativos operativos={operativos} loading={loading} />;
+      case "operativos":   return <ViewOperativos operativos={operativos} solicitudes={solicitudes} desmalezados={desmalezados} loading={loading} onRecargar={cargarDatos} />;
       case "mapa":         return <ViewMapa solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} />;
       case "alertas":      return <ViewAlertas solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} />;
       default: return <div style={{ padding:40, textAlign:"center", color:"#888" }}><div style={{ fontSize:48, marginBottom:16 }}>🚧</div><h2>Módulo en desarrollo</h2></div>;
