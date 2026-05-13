@@ -865,8 +865,10 @@ function ModalClusteringResultado({ resultado, onClose }) {
   );
 }
 
-// ── MODAL ASIGNAR BATEA CON DÍAS DE USO ──────────────────────────────────────
+// ── MODAL ASIGNAR BATEA CON FECHA INICIO Y DÍAS EDITABLES ────────────────────
 function ModalAsignarBatea({ onClose, onConfirmar }) {
+  const hoy = new Date().toISOString().split("T")[0];
+  const [fechaInicio, setFechaInicio] = useState(hoy);
   const [diasUso, setDiasUso] = useState(7);
   const [preview, setPreview] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -883,18 +885,27 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
     cargar();
   }, []);
 
-  const fechaTermino = new Date();
-  fechaTermino.setDate(fechaTermino.getDate() + diasUso);
+  // Calcular fecha de término en base a fecha inicio + días
+  const calcFechaTermino = () => {
+    const d = new Date(fechaInicio);
+    d.setDate(d.getDate() + diasUso);
+    return d.toLocaleDateString("es-CL");
+  };
+
+  const formatFechaInicio = () => {
+    const d = new Date(fechaInicio);
+    return d.toLocaleDateString("es-CL");
+  };
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:2000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:520, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:580, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
 
         {/* Header */}
         <div style={{ padding:"20px 24px", background:C.azul, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             <h2 style={{ margin:0, color:"#FFF", fontSize:17, fontWeight:700 }}>🗑️ Asignar Bateas Comunitarias</h2>
-            <p style={{ margin:"2px 0 0", color:"#90CAF9", fontSize:13 }}>Configure los días de uso antes de asignar</p>
+            <p style={{ margin:"2px 0 0", color:"#90CAF9", fontSize:13 }}>Configure fechas y días de uso — se informará a los vecinos</p>
           </div>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:34, height:34, borderRadius:"50%", cursor:"pointer", fontSize:20 }}>×</button>
         </div>
@@ -918,7 +929,7 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
                 </div>
               </div>
               {preview.grupos?.length > 0 && (
-                <div style={{ marginTop:10, maxHeight:100, overflowY:"auto" }}>
+                <div style={{ marginTop:10, maxHeight:90, overflowY:"auto" }}>
                   {preview.grupos.map((g, i) => (
                     <div key={i} style={{ fontSize:12, color:"#555", padding:"3px 0", borderBottom:"1px solid #E3F2FD" }}>
                       Grupo {i+1}: {g.vecinos} vecino(s) — máx {g.dias_max} días pendiente
@@ -929,9 +940,38 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
             </div>
           )}
 
-          {/* Selector días */}
+          {/* Fecha de inicio EDITABLE */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:16 }}>
-            <div style={{ fontWeight:700, fontSize:14, color:"#333", marginBottom:12 }}>📅 Días de uso de la batea</div>
+            <div style={{ fontWeight:700, fontSize:14, color:"#333", marginBottom:12 }}>
+              📅 Fecha de inicio de la asignación
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <input
+                type="date"
+                value={fechaInicio}
+                min={hoy}
+                onChange={e => setFechaInicio(e.target.value)}
+                style={{
+                  padding:"10px 14px", borderRadius:8, border:`2px solid ${C.azul}`,
+                  fontSize:14, outline:"none", background:"#FFF",
+                  color:C.azul, fontWeight:600, cursor:"pointer"
+                }}
+              />
+              <div style={{ fontSize:13, color:"#555" }}>
+                {fechaInicio === hoy
+                  ? "📌 Hoy — asignación inmediata"
+                  : `📌 Asignación programada para el ${formatFechaInicio()}`
+                }
+              </div>
+            </div>
+            <div style={{ marginTop:10, fontSize:12, color:"#888" }}>
+              💡 Puedes programar la asignación para una fecha futura y notificar a los vecinos con anticipación.
+            </div>
+          </div>
+
+          {/* Días de uso */}
+          <div style={{ background:"#F8FAFE", borderRadius:10, padding:16 }}>
+            <div style={{ fontWeight:700, fontSize:14, color:"#333", marginBottom:12 }}>⏱ Días de uso de la batea</div>
             <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:14 }}>
               {opciones.map(d => (
                 <button key={d} onClick={() => setDiasUso(d)} style={{
@@ -947,19 +987,33 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <span style={{ fontSize:13, color:"#555" }}>O ingresa manualmente:</span>
-              <input type="number" min={1} max={365} value={diasUso}
+              <input
+                type="number" min={1} max={365} value={diasUso}
                 onChange={e => setDiasUso(Math.max(1, Math.min(365, parseInt(e.target.value)||1)))}
-                style={{ width:80, padding:"8px 10px", borderRadius:8, border:"1px solid #DDD", fontSize:14, textAlign:"center", outline:"none" }} />
+                style={{ width:80, padding:"8px 10px", borderRadius:8, border:`2px solid ${C.azul}`, fontSize:14, textAlign:"center", outline:"none", fontWeight:600, color:C.azul }}
+              />
               <span style={{ fontSize:13, color:"#555" }}>días</span>
             </div>
           </div>
 
-          {/* Resumen fechas */}
-          <div style={{ background:C.verdeS, border:"1px solid #C8E6C9", borderRadius:10, padding:"12px 16px" }}>
-            <div style={{ fontSize:13, color:C.verde, display:"flex", flexDirection:"column", gap:4 }}>
-              <div><strong>📅 Fecha inicio:</strong> {new Date().toLocaleDateString("es-CL")}</div>
-              <div><strong>📅 Fecha término:</strong> {fechaTermino.toLocaleDateString("es-CL")}</div>
-              <div><strong>⏱ Duración total:</strong> {diasUso} días</div>
+          {/* Resumen final para vecinos */}
+          <div style={{ background:C.verdeS, border:"1px solid #C8E6C9", borderRadius:10, padding:"14px 18px" }}>
+            <div style={{ fontWeight:700, fontSize:13, color:C.verde, marginBottom:8 }}>
+              📋 Información que recibirán los vecinos
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+              <div style={{ background:"#FFF", borderRadius:8, padding:"10px", textAlign:"center" }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>FECHA INICIO</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.azul }}>{formatFechaInicio()}</div>
+              </div>
+              <div style={{ background:"#FFF", borderRadius:8, padding:"10px", textAlign:"center" }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>DURACIÓN</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.naranja }}>{diasUso} días</div>
+              </div>
+              <div style={{ background:"#FFF", borderRadius:8, padding:"10px", textAlign:"center" }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>FECHA TÉRMINO</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.rojo }}>{calcFechaTermino()}</div>
+              </div>
             </div>
           </div>
 
@@ -971,7 +1025,7 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
           <div style={{ display:"flex", gap:12, justifyContent:"flex-end" }}>
             <button onClick={onClose} style={{ padding:"10px 24px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:14, cursor:"pointer" }}>Cancelar</button>
             <button
-              onClick={() => onConfirmar(diasUso)}
+              onClick={() => onConfirmar(diasUso, fechaInicio)}
               disabled={!preview || preview.total_pendientes === 0}
               style={{
                 padding:"10px 28px", borderRadius:8, border:"none",
@@ -1025,15 +1079,15 @@ export default function App() {
   // Abre el modal de configuración antes de asignar
   const handleAsignarBatea = () => setModalAsignar(true);
 
-  // Ejecuta clustering real con días de uso definidos por el admin
-  const handleConfirmarAsignacion = useCallback(async (diasUso) => {
+  // Ejecuta clustering real con días de uso y fecha inicio definidos por el admin
+  const handleConfirmarAsignacion = useCallback(async (diasUso, fechaInicio) => {
     setModalAsignar(false);
     setClustering(true);
     try {
       const res = await fetch(`${API_URL}/api/clustering/ejecutar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ radio_metros: 100, dias_uso: diasUso })
+        body: JSON.stringify({ radio_metros: 100, dias_uso: diasUso, fecha_inicio: fechaInicio })
       });
       const data = await res.json();
       if (res.ok) {
