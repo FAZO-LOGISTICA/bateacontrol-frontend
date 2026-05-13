@@ -85,26 +85,90 @@ function Field({ label, required, error, children }) {
 
 const inp = { padding:"10px 14px", borderRadius:8, border:"1px solid #DDD", fontSize:14, outline:"none", background:"#FFF", width:"100%", boxSizing:"border-box" };
 
-function FotoUploader({ label, preview, subiendo, onUpload }) {
-  const handleChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    onUpload(null, null, true);
-    const reader = new FileReader();
-    reader.onload = (ev) => onUpload(ev.target.result, null, true);
-    reader.readAsDataURL(file);
-    try { const url = await subirCloudinary(file); onUpload(preview, url, false); }
-    catch { onUpload(preview, null, false); }
+// ── UPLOADER MÚLTIPLES FOTOS (máx 5) ─────────────────────────────────────────
+function MultiFotoUploader({ label, fotos, setFotos, maxFotos=5 }) {
+  const [subiendo, setSubiendo] = useState(false);
+
+  const handleAgregar = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const disponibles = maxFotos - fotos.length;
+    const aSubir = files.slice(0, disponibles);
+    if (!aSubir.length) return;
+
+    setSubiendo(true);
+    const nuevasUrls = [];
+    for (const file of aSubir) {
+      try {
+        const url = await subirCloudinary(file);
+        nuevasUrls.push(url);
+      } catch { console.error("Error subiendo foto"); }
+    }
+    setFotos(prev => [...prev, ...nuevasUrls]);
+    setSubiendo(false);
+    e.target.value = ""; // reset input
   };
+
+  const handleEliminar = (idx) => {
+    setFotos(prev => prev.filter((_, i) => i !== idx));
+  };
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-      <label style={{ fontSize:13, fontWeight:600, color:"#333" }}>{label}</label>
-      <label style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", width:"100%", height:110, border:"2px dashed #CCC", borderRadius:10, cursor:"pointer", background:"#F8F8F8", overflow:"hidden" }}>
-        {preview ? <img src={preview} alt="preview" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <><span style={{ fontSize:28 }}>📷</span><span style={{ fontSize:11, color:"#888", marginTop:4 }}>Subir foto</span></>}
-        <input type="file" accept="image/*" onChange={handleChange} style={{ display:"none" }} />
-      </label>
-      {subiendo && <span style={{ fontSize:11, color:C.azul }}>⏳ Subiendo...</span>}
-      {preview && !subiendo && <span style={{ fontSize:11, color:C.verde }}>✅ Guardada en la nube</span>}
+    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <label style={{ fontSize:13, fontWeight:600, color:"#333" }}>{label}</label>
+        <span style={{ fontSize:11, color:"#888" }}>{fotos.length}/{maxFotos} fotos</span>
+      </div>
+
+      {/* Grid de fotos subidas */}
+      {fotos.length > 0 && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+          {fotos.map((url, i) => (
+            <div key={i} style={{ position:"relative", width:80, height:80 }}>
+              <img src={url} alt={`foto ${i+1}`} style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"2px solid #DDD" }} />
+              <button
+                onClick={() => handleEliminar(i)}
+                style={{
+                  position:"absolute", top:-6, right:-6,
+                  width:20, height:20, borderRadius:"50%",
+                  background:C.rojo, border:"2px solid #FFF",
+                  color:"#FFF", fontSize:12, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  lineHeight:1, padding:0
+                }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Botón agregar fotos */}
+      {fotos.length < maxFotos && (
+        <label style={{
+          display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+          padding:"10px 16px", border:`2px dashed #CCC`, borderRadius:10,
+          cursor:"pointer", background:"#F8F8F8",
+          color:"#888", fontSize:13, fontWeight:500,
+          opacity: subiendo ? 0.6 : 1
+        }}>
+          {subiendo ? (
+            <><span>⏳</span> Subiendo fotos...</>
+          ) : (
+            <><span style={{ fontSize:18 }}>📷</span> Agregar foto ({fotos.length}/{maxFotos})</>
+          )}
+          <input
+            type="file" accept="image/*" multiple
+            onChange={handleAgregar}
+            disabled={subiendo}
+            style={{ display:"none" }}
+          />
+        </label>
+      )}
+
+      {fotos.length >= maxFotos && (
+        <div style={{ fontSize:11, color:C.naranja, textAlign:"center" }}>
+          ⚠️ Límite de {maxFotos} fotos alcanzado
+        </div>
+      )}
     </div>
   );
 }
@@ -165,7 +229,8 @@ function BotonesModal({ onClose, onGuardar, guardando, subiendo }) {
 }
 
 function ModalBatea({ onClose, onGuardar }) {
-  const [form, setForm] = useState({ nombre:"", rut:"", direccion:"", telefono:"", latitud:"", longitud:"", observaciones:"", foto_preview:"", foto_url:"", subiendo:false });
+  const [form, setForm] = useState({ nombre:"", rut:"", direccion:"", telefono:"", latitud:"", longitud:"", observaciones:"" });
+  const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
   const [alertaHistorial, setAlertaHistorial] = useState(null);
@@ -195,7 +260,7 @@ function ModalBatea({ onClose, onGuardar }) {
     try {
       const res = await fetch(`${API_URL}/api/solicitudes`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_vecino:form.nombre, rut:form.rut, direccion:form.direccion, telefono:form.telefono, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), observaciones:form.observaciones, foto_url:form.foto_url||form.foto_preview||"" })
+        body: JSON.stringify({ nombre_vecino:form.nombre, rut:form.rut, direccion:form.direccion, telefono:form.telefono, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), observaciones:form.observaciones, fotos_antes:fotosAntes })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -232,18 +297,18 @@ function ModalBatea({ onClose, onGuardar }) {
         </div>
       </SeccionForm>
       <SeccionGeorref errores={errores} latitud={form.latitud} longitud={form.longitud} set={set} />
-      <FotoUploader label="📷 Foto del sector (ANTES)" preview={form.foto_preview} subiendo={form.subiendo}
-        onUpload={(preview,url,sub)=>{ if(preview) set("foto_preview",preview); if(url) set("foto_url",url); set("subiendo",sub); }} />
+      <MultiFotoUploader label="📷 Fotos del sector (ANTES) — máx 5" fotos={fotosAntes} setFotos={setFotosAntes} />
       <Field label="Observaciones">
         <textarea style={{...inp, minHeight:70, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} placeholder="Información adicional..." />
       </Field>
-      <BotonesModal onClose={onClose} onGuardar={handleGuardar} guardando={guardando} subiendo={form.subiendo} />
+      <BotonesModal onClose={onClose} onGuardar={handleGuardar} guardando={guardando} subiendo={false} />
     </Modal>
   );
 }
 
 function ModalDesmalezado({ onClose, onGuardar }) {
-  const [form, setForm] = useState({ nombre:"", es_recordatorio:false, direccion:"", descripcion:"", latitud:"", longitud:"", foto_preview:"", foto_url:"", subiendo:false });
+  const [form, setForm] = useState({ nombre:"", es_recordatorio:false, direccion:"", descripcion:"", latitud:"", longitud:"" });
+  const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
@@ -262,7 +327,7 @@ function ModalDesmalezado({ onClose, onGuardar }) {
     try {
       const res = await fetch(`${API_URL}/api/desmalezados`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), foto_antes:form.foto_url||"" })
+        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), fotos_antes:fotosAntes })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -300,18 +365,18 @@ function ModalDesmalezado({ onClose, onGuardar }) {
         </div>
       </SeccionForm>
       <SeccionGeorref errores={errores} latitud={form.latitud} longitud={form.longitud} set={set} />
-      <FotoUploader label="📷 Foto ANTES del desmalezado" preview={form.foto_preview} subiendo={form.subiendo}
-        onUpload={(preview,url,sub)=>{ if(preview) set("foto_preview",preview); if(url) set("foto_url",url); set("subiendo",sub); }} />
+      <MultiFotoUploader label="📷 Fotos ANTES del desmalezado — máx 5" fotos={fotosAntes} setFotos={setFotosAntes} />
       <div style={{ background:"#E8F5E9", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.verde }}>
         🔧 Si hay una batea pendiente a menos de 100m, el sistema sugerirá crear un Operativo Conjunto automáticamente.
       </div>
-      <BotonesModal onClose={onClose} onGuardar={handleGuardar} guardando={guardando} subiendo={form.subiendo} />
+      <BotonesModal onClose={onClose} onGuardar={handleGuardar} guardando={guardando} subiendo={false} />
     </Modal>
   );
 }
 
 function ModalCamino({ onClose, onGuardar }) {
-  const [form, setForm] = useState({ nombre:"", es_recordatorio:false, direccion:"", tipo_camino:"camino", descripcion_problema:"", prioridad:"normal", latitud:"", longitud:"", foto_preview:"", foto_url:"", subiendo:false });
+  const [form, setForm] = useState({ nombre:"", es_recordatorio:false, direccion:"", tipo_camino:"camino", descripcion_problema:"", prioridad:"normal", latitud:"", longitud:"" });
+  const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
@@ -330,7 +395,7 @@ function ModalCamino({ onClose, onGuardar }) {
     try {
       const res = await fetch(`${API_URL}/api/caminos`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.prioridad, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), foto_antes:form.foto_url||"" })
+        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.prioridad, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), fotos_antes:fotosAntes })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -377,9 +442,8 @@ function ModalCamino({ onClose, onGuardar }) {
         </div>
       </SeccionForm>
       <SeccionGeorref errores={errores} latitud={form.latitud} longitud={form.longitud} set={set} />
-      <FotoUploader label="📷 Foto ANTES del arreglo" preview={form.foto_preview} subiendo={form.subiendo}
-        onUpload={(preview,url,sub)=>{ if(preview) set("foto_preview",preview); if(url) set("foto_url",url); set("subiendo",sub); }} />
-      <BotonesModal onClose={onClose} onGuardar={handleGuardar} guardando={guardando} subiendo={form.subiendo} />
+      <MultiFotoUploader label="📷 Fotos ANTES del arreglo — máx 5" fotos={fotosAntes} setFotos={setFotosAntes} />
+      <BotonesModal onClose={onClose} onGuardar={handleGuardar} guardando={guardando} subiendo={false} />
     </Modal>
   );
 }
@@ -674,8 +738,66 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
   );
 }
 
+// ── MODAL CIERRE CON FOTO DESPUÉS ────────────────────────────────────────────
+function ModalCierre({ titulo, color, onClose, onConfirmar }) {
+  const [fotosDespues, setFotosDespues] = useState([]);
+  const [observaciones, setObservaciones] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  const handleConfirmar = async () => {
+    setGuardando(true);
+    await onConfirmar(fotosDespues, observaciones);
+    setGuardando(false);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:500, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding:"18px 24px", background:color, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <h2 style={{ margin:0, color:"#FFF", fontSize:16, fontWeight:700 }}>{titulo}</h2>
+            <p style={{ margin:"2px 0 0", color:"rgba(255,255,255,0.8)", fontSize:12 }}>Sube hasta 5 fotos del resultado final</p>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
+        </div>
+        <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
+
+          <MultiFotoUploader
+            label="📷 Fotos DESPUÉS del trabajo — máx 5"
+            fotos={fotosDespues}
+            setFotos={setFotosDespues}
+          />
+
+          <div>
+            <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>📝 Observaciones del cierre</label>
+            <textarea value={observaciones} onChange={e=>setObservaciones(e.target.value)}
+              placeholder="Descripción del trabajo realizado, materiales usados, novedades..."
+              style={{ padding:"10px 14px", borderRadius:8, border:"1px solid #DDD", fontSize:13, outline:"none", background:"#FFF", width:"100%", boxSizing:"border-box", minHeight:80, resize:"vertical" }} />
+          </div>
+
+          <div style={{ background:"#E8F5E9", border:"1px solid #C8E6C9", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.verde }}>
+            ✅ Al cerrar, el estado cambiará a <strong>"completado"</strong> y las fotos quedarán guardadas para el informe final con ANTES y DESPUÉS.
+          </div>
+
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+            <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
+            <button onClick={handleConfirmar} disabled={guardando} style={{
+              padding:"9px 22px", borderRadius:8, border:"none",
+              background:guardando?"#888":C.verde, color:"#FFF", fontSize:13, fontWeight:700,
+              cursor:guardando?"not-allowed":"pointer"
+            }}>
+              {guardando ? "⏳ Cerrando..." : "✅ Cerrar Operativo"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
   const [modalAsignarId, setModalAsignarId] = useState(null);
+  const [modalCerrarId, setModalCerrarId] = useState(null);
 
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
@@ -685,6 +807,18 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
       });
       const data = await res.json();
       if (res.ok) { alert(`✅ ${data.mensaje}`); setModalAsignarId(null); onRecargar(); }
+      else alert("❌ " + (data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+
+  const handleCerrar = async (fotos_despues, observaciones) => {
+    try {
+      const res = await fetch(`${API_URL}/api/desmalezados/${modalCerrarId}/cerrar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ fotos_despues, observaciones_cierre:observaciones })
+      });
+      const data = await res.json();
+      if (res.ok) { alert("✅ Desmalezado cerrado exitosamente"); setModalCerrarId(null); onRecargar(); }
       else alert("❌ " + (data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
@@ -713,23 +847,31 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
                 {d.foto_antes?<a href={d.foto_antes} target="_blank" rel="noreferrer"><img src={d.foto_antes} alt="antes" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
                 {d.foto_despues?<a href={d.foto_despues} target="_blank" rel="noreferrer"><img src={d.foto_despues} alt="dsp" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:`2px solid ${C.verde}` }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
               </div>,
-              d.estado==="pendiente" ? (
-                <button onClick={()=>setModalAsignarId(d.id)} style={{ padding:"5px 12px", borderRadius:6, border:"none", background:C.verde, color:"#FFF", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
-                  🌿 Asignar
-                </button>
-              ) : <span style={{ fontSize:11, color:"#888" }}>{d.estado}</span>
+              <div style={{ display:"flex", gap:5, flexDirection:"column" }}>
+                {d.estado==="pendiente" && (
+                  <button onClick={()=>setModalAsignarId(d.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:C.verde, color:"#FFF", fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    🌿 Asignar
+                  </button>
+                )}
+                {d.estado==="asignado" && (
+                  <button onClick={()=>setModalCerrarId(d.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:C.azul, color:"#FFF", fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    📷 Cerrar
+                  </button>
+                )}
+                {d.estado==="completado" && <span style={{ fontSize:11, color:C.verde, fontWeight:600 }}>✅ Completado</span>}
+              </div>
             ]
           }))}
           total={desmalezados.length}
         />
       )}
       {modalAsignarId && (
-        <ModalAsignarServicio
-          titulo="🌿 Asignar Desmalezado"
-          color={C.verde}
-          onClose={()=>setModalAsignarId(null)}
-          onConfirmar={handleAsignar}
-        />
+        <ModalAsignarServicio titulo="🌿 Asignar Desmalezado" color={C.verde}
+          onClose={()=>setModalAsignarId(null)} onConfirmar={handleAsignar} />
+      )}
+      {modalCerrarId && (
+        <ModalCierre titulo="🌿 Cerrar Desmalezado" color={C.verde}
+          onClose={()=>setModalCerrarId(null)} onConfirmar={handleCerrar} />
       )}
     </div>
   );
@@ -738,6 +880,7 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
 function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
   const pc = { urgente:C.rojo, alta:C.naranja, normal:C.verde };
   const [modalAsignarId, setModalAsignarId] = useState(null);
+  const [modalCerrarId, setModalCerrarId] = useState(null);
 
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
@@ -747,6 +890,18 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
       });
       const data = await res.json();
       if (res.ok) { alert(`✅ ${data.mensaje}`); setModalAsignarId(null); onRecargar(); }
+      else alert("❌ " + (data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+
+  const handleCerrar = async (fotos_despues, observaciones) => {
+    try {
+      const res = await fetch(`${API_URL}/api/caminos/${modalCerrarId}/cerrar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ fotos_despues, observaciones_cierre:observaciones })
+      });
+      const data = await res.json();
+      if (res.ok) { alert("✅ Arreglo de camino cerrado exitosamente"); setModalCerrarId(null); onRecargar(); }
       else alert("❌ " + (data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
@@ -776,23 +931,31 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
                 {c.foto_antes?<a href={c.foto_antes} target="_blank" rel="noreferrer"><img src={c.foto_antes} alt="antes" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
                 {c.foto_despues?<a href={c.foto_despues} target="_blank" rel="noreferrer"><img src={c.foto_despues} alt="dsp" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:`2px solid ${C.verde}` }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
               </div>,
-              c.estado==="pendiente" ? (
-                <button onClick={()=>setModalAsignarId(c.id)} style={{ padding:"5px 12px", borderRadius:6, border:"none", background:C.naranja, color:"#FFF", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
-                  🛤️ Asignar
-                </button>
-              ) : <span style={{ fontSize:11, color:"#888" }}>{c.estado}</span>
+              <div style={{ display:"flex", gap:5, flexDirection:"column" }}>
+                {c.estado==="pendiente" && (
+                  <button onClick={()=>setModalAsignarId(c.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:C.naranja, color:"#FFF", fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    🛤️ Asignar
+                  </button>
+                )}
+                {c.estado==="asignado" && (
+                  <button onClick={()=>setModalCerrarId(c.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:C.azul, color:"#FFF", fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    📷 Cerrar
+                  </button>
+                )}
+                {c.estado==="completado" && <span style={{ fontSize:11, color:C.verde, fontWeight:600 }}>✅ Completado</span>}
+              </div>
             ]
           }))}
           total={caminos.length}
         />
       )}
       {modalAsignarId && (
-        <ModalAsignarServicio
-          titulo="🛤️ Asignar Arreglo de Camino"
-          color={C.naranja}
-          onClose={()=>setModalAsignarId(null)}
-          onConfirmar={handleAsignar}
-        />
+        <ModalAsignarServicio titulo="🛤️ Asignar Arreglo de Camino" color={C.naranja}
+          onClose={()=>setModalAsignarId(null)} onConfirmar={handleAsignar} />
+      )}
+      {modalCerrarId && (
+        <ModalCierre titulo="🛤️ Cerrar Arreglo de Camino" color={C.naranja}
+          onClose={()=>setModalCerrarId(null)} onConfirmar={handleCerrar} />
       )}
     </div>
   );
