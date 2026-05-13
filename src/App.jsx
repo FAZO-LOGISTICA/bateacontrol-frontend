@@ -575,7 +575,120 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering 
   );
 }
 
-function ViewDesmalezados({ desmalezados, onNuevo, loading }) {
+// ── MODAL ASIGNAR DESMALEZADO / CAMINO ───────────────────────────────────────
+function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
+  const hoy = new Date().toISOString().split("T")[0];
+  const [fechaInicio, setFechaInicio] = useState(hoy);
+  const [diasUso, setDiasUso] = useState(3);
+  const [responsable, setResponsable] = useState("");
+  const opciones = [1, 2, 3, 5, 7, 10, 14, 21, 30];
+
+  const calcFechaTermino = () => {
+    const d = new Date(fechaInicio);
+    d.setDate(d.getDate() + diasUso);
+    return d.toLocaleDateString("es-CL");
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:500, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding:"18px 24px", background:color, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <h2 style={{ margin:0, color:"#FFF", fontSize:16, fontWeight:700 }}>{titulo}</h2>
+            <p style={{ margin:"2px 0 0", color:"rgba(255,255,255,0.8)", fontSize:12 }}>Configure fecha y días de ejecución</p>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
+        </div>
+        <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
+
+          {/* Responsable */}
+          <div>
+            <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>👷 Responsable / Cuadrilla</label>
+            <input value={responsable} onChange={e=>setResponsable(e.target.value)}
+              placeholder="Nombre del responsable o cuadrilla asignada"
+              style={{ ...{padding:"10px 14px", borderRadius:8, border:`2px solid ${color}`, fontSize:14, outline:"none", background:"#FFF", width:"100%", boxSizing:"border-box"} }} />
+          </div>
+
+          {/* Fecha inicio */}
+          <div>
+            <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>📅 Fecha de inicio</label>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <input type="date" value={fechaInicio} min={hoy}
+                onChange={e=>setFechaInicio(e.target.value)}
+                style={{ padding:"10px 14px", borderRadius:8, border:`2px solid ${color}`, fontSize:14, outline:"none", color, fontWeight:600, cursor:"pointer" }} />
+              <span style={{ fontSize:12, color:"#666" }}>
+                {fechaInicio===hoy ? "📌 Hoy" : `📌 Programado ${new Date(fechaInicio).toLocaleDateString("es-CL")}`}
+              </span>
+            </div>
+          </div>
+
+          {/* Días */}
+          <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
+            <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:10 }}>⏱ Días de ejecución</label>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:12 }}>
+              {opciones.map(d => (
+                <button key={d} onClick={()=>setDiasUso(d)} style={{
+                  padding:"7px 13px", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer",
+                  background:diasUso===d?color:"#FFF", color:diasUso===d?"#FFF":"#555",
+                  border:diasUso===d?`2px solid ${color}`:"1px solid #DDD"
+                }}>{d}d</button>
+              ))}
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize:13, color:"#555" }}>Manual:</span>
+              <input type="number" min={1} max={365} value={diasUso}
+                onChange={e=>setDiasUso(Math.max(1,Math.min(365,parseInt(e.target.value)||1)))}
+                style={{ width:70, padding:"7px 10px", borderRadius:8, border:`2px solid ${color}`, fontSize:14, textAlign:"center", outline:"none", fontWeight:600, color }} />
+              <span style={{ fontSize:13, color:"#555" }}>días</span>
+            </div>
+          </div>
+
+          {/* Resumen */}
+          <div style={{ background:"#F0FFF4", border:"1px solid #C8E6C9", borderRadius:10, padding:"12px 16px" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, textAlign:"center" }}>
+              <div style={{ background:"#FFF", borderRadius:8, padding:"8px" }}>
+                <div style={{ fontSize:11, color:"#888" }}>INICIO</div>
+                <div style={{ fontSize:13, fontWeight:700, color:C.azul }}>{new Date(fechaInicio).toLocaleDateString("es-CL")}</div>
+              </div>
+              <div style={{ background:"#FFF", borderRadius:8, padding:"8px" }}>
+                <div style={{ fontSize:11, color:"#888" }}>DURACIÓN</div>
+                <div style={{ fontSize:13, fontWeight:700, color:C.naranja }}>{diasUso} días</div>
+              </div>
+              <div style={{ background:"#FFF", borderRadius:8, padding:"8px" }}>
+                <div style={{ fontSize:11, color:"#888" }}>TÉRMINO</div>
+                <div style={{ fontSize:13, fontWeight:700, color:C.rojo }}>{calcFechaTermino()}</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+            <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
+            <button onClick={()=>onConfirmar(fechaInicio, diasUso, responsable)} style={{
+              padding:"9px 22px", borderRadius:8, border:"none",
+              background:color, color:"#FFF", fontSize:13, fontWeight:700, cursor:"pointer"
+            }}>✅ Confirmar Asignación</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
+  const [modalAsignarId, setModalAsignarId] = useState(null);
+
+  const handleAsignar = async (fechaInicio, diasUso, responsable) => {
+    try {
+      const res = await fetch(`${API_URL}/api/desmalezados/${modalAsignarId}/asignar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ fecha_inicio:fechaInicio, dias_uso:diasUso, responsable })
+      });
+      const data = await res.json();
+      if (res.ok) { alert(`✅ ${data.mensaje}`); setModalAsignarId(null); onRecargar(); }
+      else alert("❌ " + (data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
@@ -584,28 +697,60 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading }) {
       </div>
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
-          columnas={["Folio","Solicitante","Dirección","Estado","Días","Foto ANTES","Foto DESPUÉS"]}
+          columnas={["Folio","Solicitante","Dirección","Estado","Inicio","Término","Días","Responsable","Fotos","Acción"]}
           filas={desmalezados.map((d,i) => ({
             key:d.id, critica:false, par:i%2===0,
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.verde, fontWeight:600, fontSize:12 }}>{d.folio}</span>,
-              <span>{d.nombre_solicitante}{d.es_recordatorio&&<span style={{ marginLeft:6, fontSize:10, background:"#E8F5E9", color:C.verde, padding:"1px 6px", borderRadius:10 }}>📝 interno</span>}</span>,
+              <span style={{ fontSize:12 }}>{d.nombre_solicitante}{d.es_recordatorio&&<span style={{ marginLeft:4, fontSize:10, background:"#E8F5E9", color:C.verde, padding:"1px 5px", borderRadius:8 }}>📝</span>}</span>,
               <span style={{ fontSize:12, color:"#666" }}>{d.direccion}</span>,
               <Badge estado={d.estado} small />,
-              <span style={{ fontWeight:700, color:d.dias_pendiente>=20?C.rojo:d.dias_pendiente>=11?C.naranja:C.verde }}>{d.dias_pendiente}d</span>,
-              d.foto_antes ? <a href={d.foto_antes} target="_blank" rel="noreferrer"><img src={d.foto_antes} alt="antes" style={{ width:36,height:36,objectFit:"cover",borderRadius:6,border:"1px solid #DDD" }} /></a> : <span style={{ fontSize:11, color:"#CCC" }}>Sin foto</span>,
-              d.foto_despues ? <a href={d.foto_despues} target="_blank" rel="noreferrer"><img src={d.foto_despues} alt="después" style={{ width:36,height:36,objectFit:"cover",borderRadius:6,border:`2px solid ${C.verde}` }} /></a> : <span style={{ fontSize:11, color:"#CCC" }}>Pendiente</span>
+              <span style={{ fontSize:12, color:C.azul, fontWeight:600 }}>{d.fecha_inicio||"—"}</span>,
+              <span style={{ fontSize:12, color:C.rojo, fontWeight:600 }}>{d.fecha_termino||"—"}</span>,
+              <span style={{ fontWeight:700, color:d.dias_uso>0?C.verde:"#888" }}>{d.dias_uso>0?`${d.dias_uso}d`:"—"}</span>,
+              <span style={{ fontSize:12, color:"#555" }}>{d.responsable||"—"}</span>,
+              <div style={{ display:"flex", gap:4 }}>
+                {d.foto_antes?<a href={d.foto_antes} target="_blank" rel="noreferrer"><img src={d.foto_antes} alt="antes" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
+                {d.foto_despues?<a href={d.foto_despues} target="_blank" rel="noreferrer"><img src={d.foto_despues} alt="dsp" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:`2px solid ${C.verde}` }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
+              </div>,
+              d.estado==="pendiente" ? (
+                <button onClick={()=>setModalAsignarId(d.id)} style={{ padding:"5px 12px", borderRadius:6, border:"none", background:C.verde, color:"#FFF", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+                  🌿 Asignar
+                </button>
+              ) : <span style={{ fontSize:11, color:"#888" }}>{d.estado}</span>
             ]
           }))}
           total={desmalezados.length}
+        />
+      )}
+      {modalAsignarId && (
+        <ModalAsignarServicio
+          titulo="🌿 Asignar Desmalezado"
+          color={C.verde}
+          onClose={()=>setModalAsignarId(null)}
+          onConfirmar={handleAsignar}
         />
       )}
     </div>
   );
 }
 
-function ViewCaminos({ caminos, onNuevo, loading }) {
+function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
   const pc = { urgente:C.rojo, alta:C.naranja, normal:C.verde };
+  const [modalAsignarId, setModalAsignarId] = useState(null);
+
+  const handleAsignar = async (fechaInicio, diasUso, responsable) => {
+    try {
+      const res = await fetch(`${API_URL}/api/caminos/${modalAsignarId}/asignar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ fecha_inicio:fechaInicio, dias_uso:diasUso, responsable })
+      });
+      const data = await res.json();
+      if (res.ok) { alert(`✅ ${data.mensaje}`); setModalAsignarId(null); onRecargar(); }
+      else alert("❌ " + (data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
@@ -614,22 +759,39 @@ function ViewCaminos({ caminos, onNuevo, loading }) {
       </div>
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
-          columnas={["Folio","Solicitante","Dirección","Tipo","Prioridad","Estado","Días","Foto ANTES","Foto DESPUÉS"]}
+          columnas={["Folio","Solicitante","Dirección","Tipo","Prioridad","Estado","Inicio","Término","Responsable","Fotos","Acción"]}
           filas={caminos.map((c,i) => ({
             key:c.id, critica:c.prioridad==="urgente", par:i%2===0,
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.naranja, fontWeight:600, fontSize:12 }}>{c.folio}</span>,
-              <span>{c.nombre_solicitante}{c.es_recordatorio&&<span style={{ marginLeft:6, fontSize:10, background:"#FFF3E0", color:C.naranja, padding:"1px 6px", borderRadius:10 }}>📝 interno</span>}</span>,
+              <span style={{ fontSize:12 }}>{c.nombre_solicitante}{c.es_recordatorio&&<span style={{ marginLeft:4, fontSize:10, background:"#FFF3E0", color:C.naranja, padding:"1px 5px", borderRadius:8 }}>📝</span>}</span>,
               <span style={{ fontSize:12, color:"#666" }}>{c.direccion}</span>,
               <span style={{ fontSize:12 }}>{c.tipo_camino}</span>,
               <span style={{ fontSize:12, fontWeight:600, color:pc[c.prioridad]||C.verde }}>{c.prioridad}</span>,
               <Badge estado={c.estado} small />,
-              <span style={{ fontWeight:700, color:c.dias_pendiente>=20?C.rojo:c.dias_pendiente>=11?C.naranja:C.verde }}>{c.dias_pendiente}d</span>,
-              c.foto_antes ? <a href={c.foto_antes} target="_blank" rel="noreferrer"><img src={c.foto_antes} alt="antes" style={{ width:36,height:36,objectFit:"cover",borderRadius:6,border:"1px solid #DDD" }} /></a> : <span style={{ fontSize:11, color:"#CCC" }}>Sin foto</span>,
-              c.foto_despues ? <a href={c.foto_despues} target="_blank" rel="noreferrer"><img src={c.foto_despues} alt="después" style={{ width:36,height:36,objectFit:"cover",borderRadius:6,border:`2px solid ${C.verde}` }} /></a> : <span style={{ fontSize:11, color:"#CCC" }}>Pendiente</span>
+              <span style={{ fontSize:12, color:C.azul, fontWeight:600 }}>{c.fecha_inicio||"—"}</span>,
+              <span style={{ fontSize:12, color:C.rojo, fontWeight:600 }}>{c.fecha_termino||"—"}</span>,
+              <span style={{ fontSize:12, color:"#555" }}>{c.responsable||"—"}</span>,
+              <div style={{ display:"flex", gap:4 }}>
+                {c.foto_antes?<a href={c.foto_antes} target="_blank" rel="noreferrer"><img src={c.foto_antes} alt="antes" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
+                {c.foto_despues?<a href={c.foto_despues} target="_blank" rel="noreferrer"><img src={c.foto_despues} alt="dsp" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:`2px solid ${C.verde}` }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
+              </div>,
+              c.estado==="pendiente" ? (
+                <button onClick={()=>setModalAsignarId(c.id)} style={{ padding:"5px 12px", borderRadius:6, border:"none", background:C.naranja, color:"#FFF", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+                  🛤️ Asignar
+                </button>
+              ) : <span style={{ fontSize:11, color:"#888" }}>{c.estado}</span>
             ]
           }))}
           total={caminos.length}
+        />
+      )}
+      {modalAsignarId && (
+        <ModalAsignarServicio
+          titulo="🛤️ Asignar Arreglo de Camino"
+          color={C.naranja}
+          onClose={()=>setModalAsignarId(null)}
+          onConfirmar={handleAsignar}
         />
       )}
     </div>
@@ -1111,8 +1273,8 @@ export default function App() {
     switch(activeView) {
       case "dashboard":    return <ViewDashboard solicitudes={solicitudes} kpis={kpis} onAsignarBatea={handleAsignarBatea} clustering={clustering} setActiveView={setActiveView} setModalActivo={setModalActivo} />;
       case "bateas":       return <ViewBateas solicitudes={solicitudes} onNueva={()=>setModalActivo("batea")} loading={loading} onAsignarBatea={handleAsignarBatea} clustering={clustering} />;
-      case "desmalezados": return <ViewDesmalezados desmalezados={desmalezados} onNuevo={()=>setModalActivo("desmalezado")} loading={loading} />;
-      case "caminos":      return <ViewCaminos caminos={caminos} onNuevo={()=>setModalActivo("camino")} loading={loading} />;
+      case "desmalezados": return <ViewDesmalezados desmalezados={desmalezados} onNuevo={()=>setModalActivo("desmalezado")} loading={loading} onRecargar={cargarDatos} />;
+      case "caminos":      return <ViewCaminos caminos={caminos} onNuevo={()=>setModalActivo("camino")} loading={loading} onRecargar={cargarDatos} />;
       case "operativos":   return <ViewOperativos operativos={operativos} loading={loading} />;
       case "mapa":         return <ViewMapa solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} />;
       case "alertas":      return <ViewAlertas solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} />;
