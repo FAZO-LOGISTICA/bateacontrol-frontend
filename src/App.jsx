@@ -1500,6 +1500,264 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GENERADOR DE REPORTES PDF (abre ventana nueva con HTML imprimible)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function generarHTMLReporte(tipo, datos) {
+  const hoy = new Date().toLocaleDateString("es-CL", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+  const horaGen = new Date().toLocaleTimeString("es-CL");
+  const cfg = {
+    batea:      { color:"#1565C0", bg:"#E3F2FD", emoji:"🗑️", titulo:"Asignación de Batea Comunitaria" },
+    desmalezado:{ color:"#2E7D32", bg:"#E8F5E9", emoji:"🌿", titulo:"Operativo de Desmalezado" },
+    camino:     { color:"#E65100", bg:"#FFF3E0", emoji:"🛤️", titulo:"Arreglo de Camino" },
+    operativo:  { color:"#6A1B9A", bg:"#F3E5F5", emoji:"🔧", titulo:"Operativo Conjunto Batea + Desmalezado" },
+  }[tipo] || { color:"#1565C0", bg:"#E3F2FD", emoji:"📄", titulo:"Informe" };
+
+  const renderFotos = (fotos, label) => {
+    if (!fotos || fotos.length === 0)
+      return `<div style="padding:16px;background:#F5F5F5;border-radius:8px;text-align:center;color:#999;font-size:13px;">Sin fotos registradas</div>`;
+    const cols = Math.min(fotos.length, 3);
+    return `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:10px;margin-top:8px;">
+      ${fotos.map((url, i) => `<div style="position:relative;">
+        <img src="${url}" style="width:100%;height:160px;object-fit:cover;border-radius:8px;border:2px solid #DDD;" onerror="this.style.display='none'" />
+        <div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.6);color:#FFF;font-size:10px;padding:2px 6px;border-radius:4px;">${label} ${i+1}</div>
+      </div>`).join("")}
+    </div>`;
+  };
+
+  const lat = datos.latitud || datos.centroide_lat || 0;
+  const lon = datos.longitud || datos.centroide_lon || 0;
+  const mapaOSM = `https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lon)-0.002},${parseFloat(lat)-0.002},${parseFloat(lon)+0.002},${parseFloat(lat)+0.002}&layer=mapnik&marker=${lat},${lon}`;
+
+  const datosPrincipales = tipo === "batea" ? `
+    <div class="dato"><div class="dato-label">Vecino Solicitante</div><div class="dato-valor">${datos.nombre_vecino||"—"}</div></div>
+    <div class="dato"><div class="dato-label">RUT</div><div class="dato-valor">${datos.rut||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Dirección</div><div class="dato-valor">${datos.direccion||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Teléfono</div><div class="dato-valor">${datos.telefono||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Número de Batea</div><div class="dato-valor">${datos.numero_batea||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Fecha Solicitud</div><div class="dato-valor">${datos.fecha_solicitud||"—"}</div></div>
+  ` : tipo === "desmalezado" ? `
+    <div class="dato"><div class="dato-label">Solicitante / Referencia</div><div class="dato-valor">${datos.nombre_solicitante||"Registro interno"}</div></div>
+    <div class="dato"><div class="dato-label">Tipo</div><div class="dato-valor">${datos.es_recordatorio?"📝 Recordatorio interno":"👤 Solicitud vecinal"}</div></div>
+    <div class="dato"><div class="dato-label">Dirección</div><div class="dato-valor">${datos.direccion||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Descripción</div><div class="dato-valor">${datos.descripcion||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Fecha Solicitud</div><div class="dato-valor">${datos.fecha_solicitud||"—"}</div></div>
+  ` : tipo === "camino" ? `
+    <div class="dato"><div class="dato-label">Solicitante / Referencia</div><div class="dato-valor">${datos.nombre_solicitante||"Registro interno"}</div></div>
+    <div class="dato"><div class="dato-label">Tipo de Vía</div><div class="dato-valor">${datos.tipo_camino||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Dirección</div><div class="dato-valor">${datos.direccion||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Problema Reportado</div><div class="dato-valor">${datos.descripcion_problema||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Prioridad</div><div class="dato-valor">${(datos.prioridad||"normal").toUpperCase()}</div></div>
+    <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
+  ` : `
+    <div class="dato"><div class="dato-label">Código Operativo</div><div class="dato-valor">${datos.codigo||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Batea Asignada</div><div class="dato-valor">${datos.numero_batea||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Vecino (Batea)</div><div class="dato-valor">${datos.nombre_vecino||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Dirección Batea</div><div class="dato-valor">${datos.direccion_batea||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Dirección Desmalezado</div><div class="dato-valor">${datos.direccion_desmalezado||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
+  `;
+
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Informe — ${datos.folio||datos.codigo||""}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1a1a1a;background:#FFF}
+.page{max-width:800px;margin:0 auto;padding:32px}
+.header{border-bottom:4px solid ${cfg.color};padding-bottom:20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-start}
+.municipio{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.titulo{font-size:22px;font-weight:bold;color:${cfg.color}}
+.subtitulo{font-size:13px;color:#555;margin-top:4px}
+.badge{background:${cfg.color};color:#FFF;padding:8px 18px;border-radius:8px;font-size:16px;font-weight:bold;text-align:center}
+.seccion{margin-bottom:24px}
+.sec-titulo{font-size:12px;font-weight:bold;color:${cfg.color};border-bottom:2px solid ${cfg.color};padding-bottom:5px;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.dato{padding:10px 14px;background:#F8F8F8;border-radius:8px;border-left:3px solid ${cfg.color}}
+.dato-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.dato-valor{font-size:14px;font-weight:bold;color:#1a1a1a}
+.fechas-box{background:${cfg.bg};border:1px solid ${cfg.color}33;border-radius:10px;padding:16px}
+.fecha-item{background:#FFF;border-radius:8px;padding:12px;text-align:center}
+.fecha-label{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px}
+.fecha-valor{font-size:15px;font-weight:bold;color:${cfg.color}}
+.mapa-frame{border:2px solid #DDD;border-radius:10px;overflow:hidden;height:240px;margin-bottom:8px}
+.mapa-frame iframe{width:100%;height:100%;border:none}
+.estado-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.color}44}
+.firma-sec{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:60px}
+.firma{border-top:1px solid #333;padding-top:8px;text-align:center;font-size:12px;color:#555}
+.footer{margin-top:32px;padding-top:16px;border-top:1px solid #DDD;display:flex;justify-content:space-between;font-size:10px;color:#999}
+@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.no-print{display:none}}
+</style></head><body><div class="page">
+
+<div class="no-print" style="margin-bottom:20px;display:flex;gap:10px;justify-content:flex-end">
+  <button onclick="window.print()" style="padding:10px 22px;background:${cfg.color};color:#FFF;border:none;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer">🖨️ Imprimir / Guardar PDF</button>
+  <button onclick="window.close()" style="padding:10px 22px;background:#F5F5F5;color:#555;border:1px solid #DDD;border-radius:8px;font-size:14px;cursor:pointer">✕ Cerrar</button>
+</div>
+
+<div class="header">
+  <div>
+    <div class="municipio">BateaControl — Sistema Municipal de Gestión Territorial</div>
+    <div class="titulo">${cfg.emoji} ${cfg.titulo}</div>
+    <div class="subtitulo">Informe Oficial — ${hoy} ${horaGen}</div>
+  </div>
+  <div><div class="badge">${datos.folio||datos.codigo||"—"}</div></div>
+</div>
+
+<div class="seccion"><span class="estado-badge">Estado: ${(datos.estado||"").toUpperCase()}</span></div>
+
+<div class="seccion">
+  <div class="sec-titulo">📋 Datos del Registro</div>
+  <div class="grid-2">${datosPrincipales}</div>
+</div>
+
+${(datos.fecha_inicio||datos.fecha_asignacion) ? `
+<div class="seccion">
+  <div class="sec-titulo">📅 Planificación Temporal</div>
+  <div class="fechas-box">
+    <div class="grid-3">
+      <div class="fecha-item"><div class="fecha-label">Fecha Inicio</div><div class="fecha-valor">${datos.fecha_inicio||datos.fecha_asignacion||"—"}</div></div>
+      <div class="fecha-item"><div class="fecha-label">Duración</div><div class="fecha-valor">${datos.dias_uso?datos.dias_uso+" días":"—"}</div></div>
+      <div class="fecha-item"><div class="fecha-label">Fecha Término</div><div class="fecha-valor">${datos.fecha_termino||"—"}</div></div>
+    </div>
+  </div>
+</div>` : ""}
+
+${lat ? `
+<div class="seccion">
+  <div class="sec-titulo">📍 Georreferencia</div>
+  <div class="grid-2" style="margin-bottom:12px">
+    <div class="dato"><div class="dato-label">Latitud</div><div class="dato-valor" style="font-family:monospace">${parseFloat(lat).toFixed(6)}</div></div>
+    <div class="dato"><div class="dato-label">Longitud</div><div class="dato-valor" style="font-family:monospace">${parseFloat(lon).toFixed(6)}</div></div>
+  </div>
+  <div class="mapa-frame"><iframe src="${mapaOSM}" loading="lazy" title="Mapa"></iframe></div>
+  <div style="font-size:11px;color:#888;text-align:center">Mapa OpenStreetMap — Ubicación del registro</div>
+</div>` : ""}
+
+<div class="seccion">
+  <div class="sec-titulo">📷 Fotografías — Estado ANTES</div>
+  ${renderFotos(datos.fotos_antes, "ANTES")}
+</div>
+
+<div class="seccion">
+  <div class="sec-titulo">📷 Fotografías — Estado DESPUÉS</div>
+  ${datos.estado === "completado"
+    ? renderFotos(datos.fotos_despues, "DESPUÉS")
+    : `<div style="padding:16px;background:#FFF3E0;border-radius:8px;text-align:center;color:#E65100;font-size:13px;border:1px solid #FFE0B2">⏳ Operativo pendiente de cierre — Las fotos del resultado se agregarán al completar el trabajo.</div>`}
+</div>
+
+${(datos.observaciones||datos.observaciones_cierre) ? `
+<div class="seccion">
+  <div class="sec-titulo">📝 Observaciones</div>
+  <div style="padding:14px;background:#F8F8F8;border-radius:8px;border-left:3px solid ${cfg.color};font-size:13px;line-height:1.6">${datos.observaciones||datos.observaciones_cierre}</div>
+</div>` : ""}
+
+<div class="firma-sec">
+  <div class="firma"><div style="margin-bottom:40px"></div>Responsable del Operativo</div>
+  <div class="firma"><div style="margin-bottom:40px"></div>Jefe de Servicio Municipal</div>
+</div>
+
+<div class="footer">
+  <div>BateaControl — Sistema Municipal de Gestión Territorial</div>
+  <div>Folio: ${datos.folio||datos.codigo||"—"} | Generado: ${hoy}</div>
+</div>
+
+</div></body></html>`;
+}
+
+function generarReporte(tipo, datos) {
+  const html = generarHTMLReporte(tipo, datos);
+  const ventana = window.open("", "_blank", "width=900,height=800,scrollbars=yes");
+  if (ventana) { ventana.document.write(html); ventana.document.close(); }
+}
+
+// ── VISTA REPORTES ────────────────────────────────────────────────────────────
+function ViewReportes({ solicitudes, desmalezados, caminos, operativos }) {
+  const [filtro, setFiltro] = useState("todos");
+  const bateasAsig = solicitudes.filter(s => s.numero_batea);
+  const desAsig = desmalezados.filter(d => d.estado !== "pendiente");
+  const camAsig = caminos.filter(c => c.estado !== "pendiente");
+  const total = bateasAsig.length + desAsig.length + camAsig.length + operativos.length;
+
+  const ItemReporte = ({ emoji, folio, titulo, subtitulo, info, color, onGenerar }) => (
+    <div style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`4px solid ${color}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+      <div style={{ flex:1 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+          <span style={{ fontSize:16 }}>{emoji}</span>
+          <span style={{ fontWeight:700, color, fontFamily:"monospace", fontSize:13 }}>{folio}</span>
+        </div>
+        <div style={{ fontSize:13, fontWeight:500 }}>{titulo}</div>
+        <div style={{ fontSize:12, color:"#666" }}>{subtitulo}</div>
+        <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{info}</div>
+      </div>
+      <button onClick={onGenerar} style={{ padding:"8px 18px", borderRadius:8, border:"none", background:color, color:"#FFF", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap", marginLeft:16 }}>
+        📄 Generar PDF
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={{ padding:28 }}>
+      <div style={{ marginBottom:24 }}>
+        <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>📄 Reportes e Informes</h1>
+        <p style={{ margin:"4px 0 0", color:"#666", fontSize:14 }}>Genera informes PDF oficiales con fotos ANTES y DESPUÉS, mapa y datos completos</p>
+      </div>
+
+      <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+        {[
+          { id:"todos", label:"Todos", count:total },
+          { id:"bateas", label:"🗑️ Bateas", count:bateasAsig.length },
+          { id:"desmalezados", label:"🌿 Desmalezados", count:desAsig.length },
+          { id:"caminos", label:"🛤️ Caminos", count:camAsig.length },
+          { id:"operativos", label:"🔧 Op. Conjuntos", count:operativos.length },
+        ].map(f => (
+          <button key={f.id} onClick={()=>setFiltro(f.id)} style={{
+            padding:"8px 16px", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer",
+            background:filtro===f.id ? "#1565C0" : "#FFF",
+            color:filtro===f.id ? "#FFF" : "#555",
+            border:filtro===f.id ? "2px solid #1565C0" : "1px solid #DDD",
+          }}>
+            {f.label} <span style={{ opacity:.7 }}>({f.count})</span>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {(filtro==="todos"||filtro==="bateas") && bateasAsig.map(s => (
+          <ItemReporte key={s.id} emoji="🗑️" folio={s.folio} titulo={s.nombre_vecino} subtitulo={s.direccion}
+            info={`Batea: ${s.numero_batea||"—"} · ${s.fecha_solicitud}${s.fotos_antes?.length>0?` · 📷 ${s.fotos_antes.length} foto(s)`:""}`}
+            color="#1565C0" onGenerar={()=>generarReporte("batea",s)} />
+        ))}
+        {(filtro==="todos"||filtro==="desmalezados") && desAsig.map(d => (
+          <ItemReporte key={d.id} emoji="🌿" folio={d.folio} titulo={d.nombre_solicitante||"Registro interno"} subtitulo={d.direccion}
+            info={`${d.fecha_inicio?`Inicio: ${d.fecha_inicio}`:""}${d.fecha_termino?` → ${d.fecha_termino}`:""}${d.dias_uso?` (${d.dias_uso}d)`:""} · 📷 ${(d.fotos_antes?.length||0)} antes / ${(d.fotos_despues?.length||0)} después`}
+            color="#2E7D32" onGenerar={()=>generarReporte("desmalezado",d)} />
+        ))}
+        {(filtro==="todos"||filtro==="caminos") && camAsig.map(c => (
+          <ItemReporte key={c.id} emoji="🛤️" folio={c.folio} titulo={`${c.nombre_solicitante||"Registro interno"} — ${c.tipo_camino}`} subtitulo={c.direccion}
+            info={`${c.fecha_inicio?`Inicio: ${c.fecha_inicio}`:""}${c.fecha_termino?` → ${c.fecha_termino}`:""}${c.dias_uso?` (${c.dias_uso}d)`:""} · 📷 ${(c.fotos_antes?.length||0)} antes / ${(c.fotos_despues?.length||0)} después`}
+            color="#E65100" onGenerar={()=>generarReporte("camino",c)} />
+        ))}
+        {(filtro==="todos"||filtro==="operativos") && operativos.map(op => (
+          <ItemReporte key={op.id} emoji="🔧" folio={op.codigo} titulo={`Batea: ${op.numero_batea} — ${op.nombre_vecino||""}`} subtitulo={op.direccion_batea||""}
+            info={`${op.fecha_inicio?`Inicio: ${op.fecha_inicio}`:""}${op.fecha_termino?` → ${op.fecha_termino}`:""} · 📷 ${(op.fotos_antes?.length||0)} antes / ${(op.fotos_despues?.length||0)} después`}
+            color="#6A1B9A" onGenerar={()=>generarReporte("operativo",op)} />
+        ))}
+        {total === 0 && (
+          <div style={{ textAlign:"center", padding:60, color:"#888" }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>📄</div>
+            <div style={{ fontSize:16, fontWeight:600 }}>Sin registros para reportar</div>
+            <div style={{ fontSize:13, marginTop:6 }}>Los reportes aparecerán cuando se asignen bateas, desmalezados o caminos.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 export default function App() {
   const [activeView, setActiveView] = useState("dashboard");
   const [solicitudes, setSolicitudes] = useState([]);
@@ -1533,449 +1791,27 @@ export default function App() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
-  // Abre el modal de configuración antes de asignar
   const handleAsignarBatea = () => setModalAsignar(true);
 
-  // Ejecuta clustering real con días de uso y fecha inicio definidos por el admin
   const handleConfirmarAsignacion = useCallback(async (diasUso, fechaInicio) => {
     setModalAsignar(false);
     setClustering(true);
     try {
       const res = await fetch(`${API_URL}/api/clustering/ejecutar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ radio_metros: 100, dias_uso: diasUso, fecha_inicio: fechaInicio })
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ radio_metros:100, dias_uso:diasUso, fecha_inicio:fechaInicio })
       });
       const data = await res.json();
-      if (res.ok) {
-        setResultadoClustering(data);
-        await cargarDatos();
-      } else {
-        alert("❌ Error: " + (data.detail || "Error desconocido"));
-      }
-    } catch {
-      alert("❌ Error de conexión con el servidor");
-    }
+      if (res.ok) { setResultadoClustering(data); await cargarDatos(); }
+      else alert("❌ Error: "+(data.detail||"Error desconocido"));
+    } catch { alert("❌ Error de conexión"); }
     setClustering(false);
   }, [cargarDatos]);
 
-  const handleGuardar = async () => {
-    setModalActivo(null);
-    await cargarDatos();
-  };
+  const handleGuardar = async () => { setModalActivo(null); await cargarDatos(); };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// GENERADOR DE REPORTES PDF
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function generarHTMLReporte(tipo, datos) {
-  const hoy = new Date().toLocaleDateString("es-CL", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
-  const horaGen = new Date().toLocaleTimeString("es-CL");
-
-  const coloresTipo = {
-    batea:     { color:"#1565C0", bg:"#E3F2FD", emoji:"🗑️", titulo:"Asignación de Batea Comunitaria" },
-    desmalezado:{ color:"#2E7D32", bg:"#E8F5E9", emoji:"🌿", titulo:"Operativo de Desmalezado" },
-    camino:    { color:"#E65100", bg:"#FFF3E0", emoji:"🛤️", titulo:"Arreglo de Camino" },
-    operativo: { color:"#6A1B9A", bg:"#F3E5F5", emoji:"🔧", titulo:"Operativo Conjunto Batea + Desmalezado" },
-  };
-  const cfg = coloresTipo[tipo] || coloresTipo.batea;
-
-  const renderFotos = (fotos, label) => {
-    if (!fotos || fotos.length === 0) return `<div style="padding:16px;background:#F5F5F5;border-radius:8px;text-align:center;color:#999;font-size:13px;">Sin fotos registradas</div>`;
-    return `
-      <div style="display:grid;grid-template-columns:repeat(${Math.min(fotos.length,3)},1fr);gap:10px;margin-top:8px;">
-        ${fotos.map((url,i) => `<div style="position:relative;">
-          <img src="${url}" alt="${label} ${i+1}" style="width:100%;height:160px;object-fit:cover;border-radius:8px;border:2px solid #DDD;" onerror="this.style.display='none'" />
-          <div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.6);color:#FFF;font-size:10px;padding:2px 6px;border-radius:4px;">${label} ${i+1}</div>
-        </div>`).join("")}
-      </div>`;
-  };
-
-  const mapaUrl = (lat, lon) =>
-    `https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=600&height=300&center=lonlat:${lon},${lat}&zoom=16&marker=lonlat:${lon},${lat};color:%23ff0000;size:large&apiKey=YOUR_KEY`;
-
-  const mapaOSM = (lat, lon) =>
-    `https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lon)-0.002},${parseFloat(lat)-0.002},${parseFloat(lon)+0.002},${parseFloat(lat)+0.002}&layer=mapnik&marker=${lat},${lon}`;
-
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Informe ${cfg.titulo} — ${datos.folio || datos.codigo}</title>
-<style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size:13px; color:#1a1a1a; background:#FFF; }
-  .page { max-width:800px; margin:0 auto; padding:32px; }
-
-  /* HEADER */
-  .header { border-bottom:4px solid ${cfg.color}; padding-bottom:20px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-start; }
-  .header-left { flex:1; }
-  .municipio { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
-  .titulo-reporte { font-size:22px; font-weight:bold; color:${cfg.color}; }
-  .subtitulo { font-size:13px; color:#555; margin-top:4px; }
-  .badge-folio { background:${cfg.color}; color:#FFF; padding:8px 18px; border-radius:8px; font-size:16px; font-weight:bold; text-align:center; }
-  .fecha-gen { font-size:11px; color:#888; margin-top:6px; text-align:right; }
-
-  /* SECCIONES */
-  .seccion { margin-bottom:24px; }
-  .seccion-titulo { font-size:13px; font-weight:bold; color:${cfg.color}; border-bottom:2px solid ${cfg.color}; padding-bottom:5px; margin-bottom:14px; text-transform:uppercase; letter-spacing:0.5px; }
-  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
-  .dato { padding:10px 14px; background:#F8F8F8; border-radius:8px; border-left:3px solid ${cfg.color}; }
-  .dato-label { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
-  .dato-valor { font-size:14px; font-weight:bold; color:#1a1a1a; }
-
-  /* FECHAS DESTACADAS */
-  .fechas-box { background:${cfg.bg}; border:1px solid ${cfg.color}33; border-radius:10px; padding:16px; }
-  .fechas-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; text-align:center; }
-  .fecha-item { background:#FFF; border-radius:8px; padding:12px; }
-  .fecha-label { font-size:10px; color:#888; text-transform:uppercase; margin-bottom:4px; }
-  .fecha-valor { font-size:15px; font-weight:bold; color:${cfg.color}; }
-
-  /* FOTOS */
-  .fotos-seccion { margin-bottom:20px; }
-  .fotos-titulo { font-size:12px; font-weight:bold; color:#555; margin-bottom:8px; text-transform:uppercase; }
-
-  /* MAPA */
-  .mapa-container { border:2px solid #DDD; border-radius:10px; overflow:hidden; height:240px; margin-bottom:8px; }
-  .mapa-container iframe { width:100%; height:100%; border:none; }
-
-  /* FIRMA */
-  .firma-seccion { margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:60px; }
-  .firma-linea { border-top:1px solid #333; padding-top:8px; text-align:center; font-size:12px; color:#555; }
-
-  /* FOOTER */
-  .footer { margin-top:32px; padding-top:16px; border-top:1px solid #DDD; display:flex; justify-content:space-between; font-size:10px; color:#999; }
-
-  /* ESTADO BADGE */
-  .estado-badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:bold; background:${cfg.bg}; color:${cfg.color}; border:1px solid ${cfg.color}44; }
-
-  @media print {
-    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    .page { padding:20px; }
-    .no-print { display:none; }
-  }
-</style>
-</head>
-<body>
-<div class="page">
-
-  <!-- BOTONES (solo pantalla, no imprimen) -->
-  <div class="no-print" style="margin-bottom:20px;display:flex;gap:10px;justify-content:flex-end;">
-    <button onclick="window.print()" style="padding:10px 22px;background:${cfg.color};color:#FFF;border:none;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;">🖨️ Imprimir / Guardar PDF</button>
-    <button onclick="window.close()" style="padding:10px 22px;background:#F5F5F5;color:#555;border:1px solid #DDD;border-radius:8px;font-size:14px;cursor:pointer;">✕ Cerrar</button>
-  </div>
-
-  <!-- HEADER -->
-  <div class="header">
-    <div class="header-left">
-      <div class="municipio">BateaControl — Sistema Municipal de Gestión Territorial</div>
-      <div class="titulo-reporte">${cfg.emoji} ${cfg.titulo}</div>
-      <div class="subtitulo">Informe Oficial de Registro — Generado el ${hoy} a las ${horaGen}</div>
-    </div>
-    <div>
-      <div class="badge-folio">${datos.folio || datos.codigo || "—"}</div>
-      <div class="fecha-gen">Documento oficial</div>
-    </div>
-  </div>
-
-  <!-- ESTADO -->
-  <div class="seccion">
-    <span class="estado-badge">Estado: ${(datos.estado||"").toUpperCase()}</span>
-  </div>
-
-  <!-- DATOS PRINCIPALES -->
-  <div class="seccion">
-    <div class="seccion-titulo">📋 Datos del Registro</div>
-    <div class="grid-2">
-      ${tipo==="batea" ? `
-        <div class="dato"><div class="dato-label">Vecino Solicitante</div><div class="dato-valor">${datos.nombre_vecino||"—"}</div></div>
-        <div class="dato"><div class="dato-label">RUT</div><div class="dato-valor">${datos.rut||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Dirección</div><div class="dato-valor">${datos.direccion||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Teléfono</div><div class="dato-valor">${datos.telefono||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Número de Batea</div><div class="dato-valor">${datos.numero_batea||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Fecha de Solicitud</div><div class="dato-valor">${datos.fecha_solicitud||"—"}</div></div>
-      ` : tipo==="desmalezado" ? `
-        <div class="dato"><div class="dato-label">Solicitante / Referencia</div><div class="dato-valor">${datos.nombre_solicitante||"Registro interno"}</div></div>
-        <div class="dato"><div class="dato-label">Tipo</div><div class="dato-valor">${datos.es_recordatorio?"📝 Recordatorio interno":"👤 Solicitud vecinal"}</div></div>
-        <div class="dato"><div class="dato-label">Dirección</div><div class="dato-valor">${datos.direccion||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Descripción</div><div class="dato-valor">${datos.descripcion||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Fecha Solicitud</div><div class="dato-valor">${datos.fecha_solicitud||"—"}</div></div>
-      ` : tipo==="camino" ? `
-        <div class="dato"><div class="dato-label">Solicitante / Referencia</div><div class="dato-valor">${datos.nombre_solicitante||"Registro interno"}</div></div>
-        <div class="dato"><div class="dato-label">Tipo de Vía</div><div class="dato-valor">${datos.tipo_camino||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Dirección</div><div class="dato-valor">${datos.direccion||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Problema Reportado</div><div class="dato-valor">${datos.descripcion_problema||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Prioridad</div><div class="dato-valor">${(datos.prioridad||"normal").toUpperCase()}</div></div>
-        <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
-      ` : `
-        <div class="dato"><div class="dato-label">Código Operativo</div><div class="dato-valor">${datos.codigo||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Batea Asignada</div><div class="dato-valor">${datos.numero_batea||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Vecino (Batea)</div><div class="dato-valor">${datos.nombre_vecino||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Dirección Batea</div><div class="dato-valor">${datos.direccion_batea||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Dirección Desmalezado</div><div class="dato-valor">${datos.direccion_desmalezado||"—"}</div></div>
-        <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
-      `}
-    </div>
-  </div>
-
-  <!-- FECHAS DE ASIGNACIÓN -->
-  ${(datos.fecha_inicio || datos.fecha_asignacion) ? `
-  <div class="seccion">
-    <div class="seccion-titulo">📅 Planificación Temporal</div>
-    <div class="fechas-box">
-      <div class="fechas-grid">
-        <div class="fecha-item">
-          <div class="fecha-label">Fecha Inicio</div>
-          <div class="fecha-valor">${datos.fecha_inicio || datos.fecha_asignacion || "—"}</div>
-        </div>
-        <div class="fecha-item">
-          <div class="fecha-label">Duración</div>
-          <div class="fecha-valor">${datos.dias_uso ? datos.dias_uso+" días" : "—"}</div>
-        </div>
-        <div class="fecha-item">
-          <div class="fecha-label">Fecha Término</div>
-          <div class="fecha-valor">${datos.fecha_termino || "—"}</div>
-        </div>
-      </div>
-    </div>
-  </div>` : ""}
-
-  <!-- GEORREFERENCIA Y MAPA -->
-  ${(datos.latitud || datos.centroide_lat) ? `
-  <div class="seccion">
-    <div class="seccion-titulo">📍 Georreferencia</div>
-    <div class="grid-2" style="margin-bottom:12px;">
-      <div class="dato"><div class="dato-label">Latitud</div><div class="dato-valor" style="font-family:monospace;">${parseFloat(datos.latitud||datos.centroide_lat||0).toFixed(6)}</div></div>
-      <div class="dato"><div class="dato-label">Longitud</div><div class="dato-valor" style="font-family:monospace;">${parseFloat(datos.longitud||datos.centroide_lon||0).toFixed(6)}</div></div>
-    </div>
-    <div class="mapa-container">
-      <iframe src="${mapaOSM(datos.latitud||datos.centroide_lat, datos.longitud||datos.centroide_lon)}" loading="lazy" title="Mapa ubicación"></iframe>
-    </div>
-    <div style="font-size:11px;color:#888;text-align:center;">Mapa OpenStreetMap — Ubicación aproximada del registro</div>
-  </div>` : ""}
-
-  <!-- FOTOS ANTES -->
-  <div class="seccion">
-    <div class="seccion-titulo">📷 Fotografías — Estado ANTES</div>
-    ${renderFotos(datos.fotos_antes, "ANTES")}
-  </div>
-
-  <!-- FOTOS DESPUÉS -->
-  ${datos.estado === "completado" ? `
-  <div class="seccion">
-    <div class="seccion-titulo">📷 Fotografías — Estado DESPUÉS</div>
-    ${renderFotos(datos.fotos_despues, "DESPUÉS")}
-  </div>` : `
-  <div class="seccion">
-    <div class="seccion-titulo">📷 Fotografías — Estado DESPUÉS</div>
-    <div style="padding:16px;background:#FFF3E0;border-radius:8px;text-align:center;color:#E65100;font-size:13px;border:1px solid #FFE0B2;">
-      ⏳ Operativo aún no cerrado — Las fotos del resultado final se agregarán al completar el trabajo.
-    </div>
-  </div>`}
-
-  <!-- OBSERVACIONES -->
-  ${(datos.observaciones || datos.observaciones_cierre) ? `
-  <div class="seccion">
-    <div class="seccion-titulo">📝 Observaciones</div>
-    <div style="padding:14px;background:#F8F8F8;border-radius:8px;border-left:3px solid ${cfg.color};font-size:13px;line-height:1.6;">
-      ${datos.observaciones || datos.observaciones_cierre || "—"}
-    </div>
-  </div>` : ""}
-
-  <!-- FIRMAS -->
-  <div class="firma-seccion">
-    <div class="firma-linea">
-      <div style="margin-bottom:40px;"></div>
-      Responsable del Operativo
-    </div>
-    <div class="firma-linea">
-      <div style="margin-bottom:40px;"></div>
-      Jefe de Servicio Municipal
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <div class="footer">
-    <div>BateaControl — Sistema Municipal de Gestión Territorial</div>
-    <div>Folio: ${datos.folio||datos.codigo||"—"} | Generado: ${hoy}</div>
-  </div>
-
-</div>
-</body>
-</html>`;
-}
-
-function generarReporte(tipo, datos) {
-  const html = generarHTMLReporte(tipo, datos);
-  const ventana = window.open("", "_blank", "width=900,height=800,scrollbars=yes");
-  if (ventana) {
-    ventana.document.write(html);
-    ventana.document.close();
-  }
-}
-
-// ── VISTA REPORTES ────────────────────────────────────────────────────────────
-function ViewReportes({ solicitudes, desmalezados, caminos, operativos }) {
-  const [filtro, setFiltro] = useState("todos");
-
-  const bateasConBatea = solicitudes.filter(s => s.numero_batea);
-  const desmalezadosAsig = desmalezados.filter(d => d.estado !== "pendiente");
-  const caminosAsig = caminos.filter(c => c.estado !== "pendiente");
-  const operativosCreados = operativos;
-
-  const total = bateasConBatea.length + desmalezadosAsig.length + caminosAsig.length + operativosCreados.length;
-
-  return (
-    <div style={{ padding:28 }}>
-      <div style={{ marginBottom:24 }}>
-        <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>📄 Reportes e Informes</h1>
-        <p style={{ margin:"4px 0 0", color:"#666", fontSize:14 }}>Genera informes PDF oficiales con fotos y datos completos</p>
-      </div>
-
-      {/* Filtros */}
-      <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
-        {[
-          { id:"todos", label:"Todos", count:total },
-          { id:"bateas", label:"🗑️ Bateas", count:bateasConBatea.length },
-          { id:"desmalezados", label:"🌿 Desmalezados", count:desmalezadosAsig.length },
-          { id:"caminos", label:"🛤️ Caminos", count:caminosAsig.length },
-          { id:"operativos", label:"🔧 Op. Conjuntos", count:operativosCreados.length },
-        ].map(f => (
-          <button key={f.id} onClick={()=>setFiltro(f.id)} style={{
-            padding:"8px 16px", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer",
-            background: filtro===f.id ? C.azul : "#FFF",
-            color: filtro===f.id ? "#FFF" : "#555",
-            border: filtro===f.id ? `2px solid ${C.azul}` : "1px solid #DDD",
-          }}>
-            {f.label} <span style={{ opacity:0.7 }}>({f.count})</span>
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-
-        {/* BATEAS */}
-        {(filtro==="todos"||filtro==="bateas") && bateasConBatea.map(s => (
-          <div key={s.id} style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`4px solid ${C.azul}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ flex:1 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                <span style={{ fontSize:16 }}>🗑️</span>
-                <span style={{ fontWeight:700, color:C.azul, fontFamily:"monospace" }}>{s.folio}</span>
-                <Badge estado={s.estado} small />
-              </div>
-              <div style={{ fontSize:13, fontWeight:500 }}>{s.nombre_vecino}</div>
-              <div style={{ fontSize:12, color:"#666" }}>{s.direccion}</div>
-              <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                Batea: {s.numero_batea||"—"} · {s.fecha_solicitud}
-                {s.fotos_antes?.length > 0 && <span style={{ marginLeft:8, color:C.verde }}>📷 {s.fotos_antes.length} foto(s)</span>}
-              </div>
-            </div>
-            <button onClick={()=>generarReporte("batea", s)} style={{
-              padding:"8px 18px", borderRadius:8, border:"none",
-              background:C.azul, color:"#FFF", fontSize:13, fontWeight:600, cursor:"pointer",
-              display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap"
-            }}>
-              📄 Generar PDF
-            </button>
-          </div>
-        ))}
-
-        {/* DESMALEZADOS */}
-        {(filtro==="todos"||filtro==="desmalezados") && desmalezadosAsig.map(d => (
-          <div key={d.id} style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`4px solid ${C.verde}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ flex:1 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                <span style={{ fontSize:16 }}>🌿</span>
-                <span style={{ fontWeight:700, color:C.verde, fontFamily:"monospace" }}>{d.folio}</span>
-                <Badge estado={d.estado} small />
-              </div>
-              <div style={{ fontSize:13, fontWeight:500 }}>{d.nombre_solicitante||"Registro interno"}</div>
-              <div style={{ fontSize:12, color:"#666" }}>{d.direccion}</div>
-              <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                {d.fecha_inicio && `Inicio: ${d.fecha_inicio}`} {d.fecha_termino && `→ ${d.fecha_termino}`} {d.dias_uso ? `(${d.dias_uso}d)` : ""}
-                {d.fotos_antes?.length > 0 && <span style={{ marginLeft:8, color:C.verde }}>📷 {d.fotos_antes.length} antes</span>}
-                {d.fotos_despues?.length > 0 && <span style={{ marginLeft:4, color:C.azul }}>📷 {d.fotos_despues.length} después</span>}
-              </div>
-            </div>
-            <button onClick={()=>generarReporte("desmalezado", d)} style={{
-              padding:"8px 18px", borderRadius:8, border:"none",
-              background:C.verde, color:"#FFF", fontSize:13, fontWeight:600, cursor:"pointer",
-              display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap"
-            }}>
-              📄 Generar PDF
-            </button>
-          </div>
-        ))}
-
-        {/* CAMINOS */}
-        {(filtro==="todos"||filtro==="caminos") && caminosAsig.map(c => (
-          <div key={c.id} style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`4px solid ${C.naranja}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ flex:1 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                <span style={{ fontSize:16 }}>🛤️</span>
-                <span style={{ fontWeight:700, color:C.naranja, fontFamily:"monospace" }}>{c.folio}</span>
-                <Badge estado={c.estado} small />
-                <span style={{ fontSize:11, color:"#888" }}>{c.tipo_camino}</span>
-              </div>
-              <div style={{ fontSize:13, fontWeight:500 }}>{c.nombre_solicitante||"Registro interno"}</div>
-              <div style={{ fontSize:12, color:"#666" }}>{c.direccion}</div>
-              <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                {c.fecha_inicio && `Inicio: ${c.fecha_inicio}`} {c.fecha_termino && `→ ${c.fecha_termino}`} {c.dias_uso ? `(${c.dias_uso}d)` : ""}
-                {c.fotos_antes?.length > 0 && <span style={{ marginLeft:8, color:C.verde }}>📷 {c.fotos_antes.length} antes</span>}
-                {c.fotos_despues?.length > 0 && <span style={{ marginLeft:4, color:C.azul }}>📷 {c.fotos_despues.length} después</span>}
-              </div>
-            </div>
-            <button onClick={()=>generarReporte("camino", c)} style={{
-              padding:"8px 18px", borderRadius:8, border:"none",
-              background:C.naranja, color:"#FFF", fontSize:13, fontWeight:600, cursor:"pointer",
-              display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap"
-            }}>
-              📄 Generar PDF
-            </button>
-          </div>
-        ))}
-
-        {/* OPERATIVOS CONJUNTOS */}
-        {(filtro==="todos"||filtro==="operativos") && operativosCreados.map(op => (
-          <div key={op.id} style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`4px solid ${C.morado}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div style={{ flex:1 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                <span style={{ fontSize:16 }}>🔧</span>
-                <span style={{ fontWeight:700, color:C.morado, fontFamily:"monospace" }}>{op.codigo}</span>
-                <Badge estado={op.estado} small />
-              </div>
-              <div style={{ fontSize:13, fontWeight:500 }}>Batea: {op.numero_batea} — {op.nombre_vecino}</div>
-              <div style={{ fontSize:12, color:"#666" }}>{op.direccion_batea}</div>
-              <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
-                {op.fecha_inicio && `Inicio: ${op.fecha_inicio}`} {op.fecha_termino && `→ ${op.fecha_termino}`}
-                {op.fotos_antes?.length > 0 && <span style={{ marginLeft:8, color:C.verde }}>📷 {op.fotos_antes.length} antes</span>}
-                {op.fotos_despues?.length > 0 && <span style={{ marginLeft:4, color:C.azul }}>📷 {op.fotos_despues.length} después</span>}
-              </div>
-            </div>
-            <button onClick={()=>generarReporte("operativo", op)} style={{
-              padding:"8px 18px", borderRadius:8, border:"none",
-              background:C.morado, color:"#FFF", fontSize:13, fontWeight:600, cursor:"pointer",
-              display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap"
-            }}>
-              📄 Generar PDF
-            </button>
-          </div>
-        ))}
-
-        {/* Sin registros */}
-        {total === 0 && (
-          <div style={{ textAlign:"center", padding:60, color:"#888" }}>
-            <div style={{ fontSize:48, marginBottom:12 }}>📄</div>
-            <div style={{ fontSize:16, fontWeight:600 }}>Sin registros para reportar</div>
-            <div style={{ fontSize:13, marginTop:6 }}>Los reportes aparecerán cuando se asignen bateas, desmalezados o caminos.</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+  const renderView = () => {
+    switch(activeView) {
       case "dashboard":    return <ViewDashboard solicitudes={solicitudes} kpis={kpis} onAsignarBatea={handleAsignarBatea} clustering={clustering} setActiveView={setActiveView} setModalActivo={setModalActivo} />;
       case "bateas":       return <ViewBateas solicitudes={solicitudes} onNueva={()=>setModalActivo("batea")} loading={loading} onAsignarBatea={handleAsignarBatea} clustering={clustering} />;
       case "desmalezados": return <ViewDesmalezados desmalezados={desmalezados} onNuevo={()=>setModalActivo("desmalezado")} loading={loading} onRecargar={cargarDatos} />;
