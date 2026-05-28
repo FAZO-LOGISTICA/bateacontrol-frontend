@@ -1529,7 +1529,15 @@ function generarHTMLReporte(tipo, datos) {
 
   const lat = datos.latitud || datos.centroide_lat || 0;
   const lon = datos.longitud || datos.centroide_lon || 0;
-  const mapaOSM = `https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lon)-0.002},${parseFloat(lat)-0.002},${parseFloat(lon)+0.002},${parseFloat(lat)+0.002}&layer=mapnik&marker=${lat},${lon}`;
+
+  // Mapa estático OSM — imagen fija, funciona en correos y PDFs
+  const zoom = 16;
+  const mapaEstatico = lat
+    ? `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=${zoom}&size=760x280&markers=${lat},${lon},red-pushpin`
+    : null;
+
+  // Nombre del archivo PDF
+  const nombreArchivo = `BateaControl_${datos.folio||datos.codigo||"informe"}_${new Date().toLocaleDateString("es-CL").replace(/\//g,"-")}.pdf`;
 
   const datosPrincipales = tipo === "batea" ? `
     <div class="dato"><div class="dato-label">Vecino Solicitante</div><div class="dato-valor">${datos.nombre_vecino||"—"}</div></div>
@@ -1563,6 +1571,7 @@ function generarHTMLReporte(tipo, datos) {
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Informe — ${datos.folio||datos.codigo||""}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1a1a1a;background:#FFF}
@@ -1583,25 +1592,32 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1a1a1a;backgro
 .fecha-item{background:#FFF;border-radius:8px;padding:12px;text-align:center}
 .fecha-label{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px}
 .fecha-valor{font-size:15px;font-weight:bold;color:${cfg.color}}
-.mapa-frame{border:2px solid #DDD;border-radius:10px;overflow:hidden;height:240px;margin-bottom:8px}
-.mapa-frame iframe{width:100%;height:100%;border:none}
+.mapa-img{width:100%;height:280px;object-fit:cover;border-radius:10px;border:2px solid #DDD;display:block}
+.mapa-caption{font-size:11px;color:#888;text-align:center;margin-top:6px}
 .estado-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.color}44}
 .firma-sec{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:60px}
 .firma{border-top:1px solid #333;padding-top:8px;text-align:center;font-size:12px;color:#555}
 .footer{margin-top:32px;padding-top:16px;border-top:1px solid #DDD;display:flex;justify-content:space-between;font-size:10px;color:#999}
-@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.no-print{display:none}}
+.btn-bar{margin-bottom:20px;display:flex;gap:10px;justify-content:flex-end;align-items:center}
+.btn-pdf{padding:11px 24px;background:${cfg.color};color:#FFF;border:none;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:8px}
+.btn-close{padding:11px 20px;background:#F5F5F5;color:#555;border:1px solid #DDD;border-radius:8px;font-size:14px;cursor:pointer}
+.btn-pdf:disabled{background:#AAA;cursor:not-allowed}
+@media print{.btn-bar{display:none}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 </style></head><body><div class="page">
 
-<div class="no-print" style="margin-bottom:20px;display:flex;gap:10px;justify-content:flex-end">
-  <button onclick="window.print()" style="padding:10px 22px;background:${cfg.color};color:#FFF;border:none;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer">🖨️ Imprimir / Guardar PDF</button>
-  <button onclick="window.close()" style="padding:10px 22px;background:#F5F5F5;color:#555;border:1px solid #DDD;border-radius:8px;font-size:14px;cursor:pointer">✕ Cerrar</button>
+<div class="btn-bar">
+  <span id="estado-btn" style="font-size:12px;color:#888"></span>
+  <button class="btn-pdf" id="btn-pdf" onclick="descargarPDF()">⬇️ Descargar PDF</button>
+  <button class="btn-close" onclick="window.close()">✕ Cerrar</button>
 </div>
+
+<div id="contenido-pdf">
 
 <div class="header">
   <div>
     <div class="municipio">BateaControl — Sistema Municipal de Gestión Territorial</div>
     <div class="titulo">${cfg.emoji} ${cfg.titulo}</div>
-    <div class="subtitulo">Informe Oficial — ${hoy} ${horaGen}</div>
+    <div class="subtitulo">Informe Oficial — ${hoy} a las ${horaGen}</div>
   </div>
   <div><div class="badge">${datos.folio||datos.codigo||"—"}</div></div>
 </div>
@@ -1625,15 +1641,15 @@ ${(datos.fecha_inicio||datos.fecha_asignacion) ? `
   </div>
 </div>` : ""}
 
-${lat ? `
+${mapaEstatico ? `
 <div class="seccion">
   <div class="sec-titulo">📍 Georreferencia</div>
   <div class="grid-2" style="margin-bottom:12px">
     <div class="dato"><div class="dato-label">Latitud</div><div class="dato-valor" style="font-family:monospace">${parseFloat(lat).toFixed(6)}</div></div>
     <div class="dato"><div class="dato-label">Longitud</div><div class="dato-valor" style="font-family:monospace">${parseFloat(lon).toFixed(6)}</div></div>
   </div>
-  <div class="mapa-frame"><iframe src="${mapaOSM}" loading="lazy" title="Mapa"></iframe></div>
-  <div style="font-size:11px;color:#888;text-align:center">Mapa OpenStreetMap — Ubicación del registro</div>
+  <img class="mapa-img" src="${mapaEstatico}" alt="Mapa de ubicación" crossorigin="anonymous" onerror="this.src='';this.alt='Mapa no disponible';this.style.height='60px';this.style.background='#F5F5F5'" />
+  <div class="mapa-caption">📌 Ubicación georreferenciada — ${parseFloat(lat).toFixed(5)}, ${parseFloat(lon).toFixed(5)} — OpenStreetMap</div>
 </div>` : ""}
 
 <div class="seccion">
@@ -1663,6 +1679,50 @@ ${(datos.observaciones||datos.observaciones_cierre) ? `
   <div>BateaControl — Sistema Municipal de Gestión Territorial</div>
   <div>Folio: ${datos.folio||datos.codigo||"—"} | Generado: ${hoy}</div>
 </div>
+
+</div><!-- fin contenido-pdf -->
+
+<script>
+function descargarPDF() {
+  const btn = document.getElementById('btn-pdf');
+  const estado = document.getElementById('estado-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generando PDF...';
+  estado.textContent = 'Procesando imágenes y mapa...';
+
+  const elemento = document.getElementById('contenido-pdf');
+  const opciones = {
+    margin: [10, 10, 10, 10],
+    filename: '${nombreArchivo}',
+    image: { type: 'jpeg', quality: 0.92 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      logging: false
+    },
+    jsPDF: {
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait'
+    }
+  };
+
+  html2pdf().set(opciones).from(elemento).save()
+    .then(() => {
+      btn.disabled = false;
+      btn.textContent = '⬇️ Descargar PDF';
+      estado.textContent = '✅ PDF descargado correctamente';
+      setTimeout(() => { estado.textContent = ''; }, 4000);
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = '⬇️ Descargar PDF';
+      estado.textContent = '❌ Error al generar PDF';
+      console.error(err);
+    });
+}
+</script>
 
 </div></body></html>`;
 }
