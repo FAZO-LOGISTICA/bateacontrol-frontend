@@ -640,9 +640,20 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering 
                 ))}
                 {!(s.fotos_antes?.length) && <span style={{ fontSize:11, color:"#CCC" }}>Sin fotos</span>}
               </div>,
-              <button onClick={()=>setEditando(s)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.azul}`, background:"#FFF", color:C.azul, fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
-                ✏️ Editar
-              </button>
+              <div style={{ display:"flex", gap:4 }}>
+                <button onClick={()=>setEditando(s)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.azul}`, background:"#FFF", color:C.azul, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  ✏️ Editar
+                </button>
+                <button onClick={async ()=>{
+                  if (!window.confirm(`¿Eliminar la solicitud ${s.folio} de ${s.nombre_vecino}?\n\nEsto no se puede deshacer.`)) return;
+                  const res = await fetch(`${API_URL}/api/solicitudes/${s.id}`, { method:"DELETE" });
+                  const data = await res.json();
+                  if (res.ok) { alert("✅ "+data.mensaje); window.location.reload(); }
+                  else alert("❌ "+(data.detail||"Error"));
+                }} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.rojo}`, background:"#FFF", color:C.rojo, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  🗑️
+                </button>
+              </div>
             ]
           }))}
           total={solicitudes.length}
@@ -1051,6 +1062,15 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
                 <button onClick={()=>setEditando(d)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.verde}`, background:"#FFF", color:C.verde, fontSize:11, fontWeight:600, cursor:"pointer" }}>
                   ✏️ Editar
                 </button>
+                <button onClick={async ()=>{
+                  if (!window.confirm(`¿Eliminar el desmalezado ${d.folio}?\n\nEsto no se puede deshacer.`)) return;
+                  const res = await fetch(`${API_URL}/api/desmalezados/${d.id}`, { method:"DELETE" });
+                  const data = await res.json();
+                  if (res.ok) { alert("✅ "+data.mensaje); onRecargar(); }
+                  else alert("❌ "+(data.detail||"Error"));
+                }} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.rojo}`, background:"#FFF", color:C.rojo, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  🗑️
+                </button>
               </div>
             ]
           }))}
@@ -1143,6 +1163,15 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
                 {c.estado==="completado" && <span style={{ fontSize:11, color:C.verde, fontWeight:600 }}>✅ Completado</span>}
                 <button onClick={()=>setEditando(c)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.naranja}`, background:"#FFF", color:C.naranja, fontSize:11, fontWeight:600, cursor:"pointer" }}>
                   ✏️ Editar
+                </button>
+                <button onClick={async ()=>{
+                  if (!window.confirm(`¿Eliminar el arreglo de camino ${c.folio}?\n\nEsto no se puede deshacer.`)) return;
+                  const res = await fetch(`${API_URL}/api/caminos/${c.id}`, { method:"DELETE" });
+                  const data = await res.json();
+                  if (res.ok) { alert("✅ "+data.mensaje); onRecargar(); }
+                  else alert("❌ "+(data.detail||"Error"));
+                }} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.rojo}`, background:"#FFF", color:C.rojo, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  🗑️
                 </button>
               </div>
             ]
