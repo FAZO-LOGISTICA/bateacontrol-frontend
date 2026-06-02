@@ -593,11 +593,14 @@ function ViewDashboard({ solicitudes, kpis, onAsignarBatea, clustering, setActiv
 function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering }) {
   const [filtro, setFiltro] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
+  const [editando, setEditando] = useState(null); // registro seleccionado para editar
+
   const filtradas = solicitudes.filter(s => {
     const mE = filtro==="todos"||s.estado===filtro;
     const mB = busqueda===""||[s.nombre_vecino,s.direccion,s.folio,s.rut].some(v=>(v||"").toLowerCase().includes(busqueda.toLowerCase()));
     return mE&&mB;
   });
+
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
@@ -618,7 +621,7 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering 
       </div>
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
-          columnas={["Folio","Vecino","Dirección","Coords","Estado","Alerta","Días","Foto"]}
+          columnas={["Folio","Vecino","Dirección","Coords","Estado","Alerta","Días","Fotos","Acción"]}
           filas={filtradas.map((s,i) => ({
             key:s.id, critica:s.nivel_alerta==="critica", par:i%2===0,
             celdas:[
@@ -629,12 +632,197 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering 
               <Badge estado={s.estado} small />,
               <Badge alerta={s.nivel_alerta} small />,
               <span style={{ fontWeight:700, color:s.dias_pendiente>=20?C.rojo:s.dias_pendiente>=11?C.naranja:C.verde }}>{s.dias_pendiente}d</span>,
-              s.foto_url ? <a href={s.foto_url} target="_blank" rel="noreferrer"><img src={s.foto_url} alt="foto" style={{ width:36,height:36,objectFit:"cover",borderRadius:6,border:"1px solid #DDD" }} /></a> : <span style={{ fontSize:11, color:"#CCC" }}>Sin foto</span>
+              <div style={{ display:"flex", gap:4 }}>
+                {(s.fotos_antes||[]).slice(0,3).map((url,i)=>(
+                  <a key={i} href={url} target="_blank" rel="noreferrer">
+                    <img src={url} alt="foto" style={{ width:28,height:28,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} />
+                  </a>
+                ))}
+                {!(s.fotos_antes?.length) && <span style={{ fontSize:11, color:"#CCC" }}>Sin fotos</span>}
+              </div>,
+              <button onClick={()=>setEditando(s)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.azul}`, background:"#FFF", color:C.azul, fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+                ✏️ Editar
+              </button>
             ]
           }))}
           total={solicitudes.length}
         />
       )}
+      {editando && (
+        <ModalEditar tipo="batea" registro={editando}
+          onClose={()=>setEditando(null)}
+          onGuardar={()=>{ setEditando(null); window.location.reload(); }} />
+      )}
+    </div>
+  );
+}
+
+
+// ── MODAL EDITAR REGISTRO (universal para bateas, desmalezados y caminos) ─────
+function ModalEditar({ tipo, registro, onClose, onGuardar }) {
+  const [form, setForm] = useState({ ...registro });
+  const [fotosAntes, setFotosAntes] = useState(registro.fotos_antes || []);
+  const [guardando, setGuardando] = useState(false);
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const endpointMap = { batea:"solicitudes", desmalezado:"desmalezados", camino:"caminos" };
+  const colorMap = { batea:C.azul, desmalezado:C.verde, camino:C.naranja };
+  const tituloMap = { batea:"✏️ Editar Solicitud de Batea", desmalezado:"✏️ Editar Desmalezado", camino:"✏️ Editar Arreglo de Camino" };
+  const color = colorMap[tipo] || C.azul;
+
+  const handleGuardar = async () => {
+    setGuardando(true);
+    try {
+      const endpoint = endpointMap[tipo];
+      const body = tipo === "batea"
+        ? { nombre_vecino:form.nombre_vecino, rut:form.rut, direccion:form.direccion, telefono:form.telefono, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, observaciones:form.observaciones, fotos_antes:fotosAntes }
+        : tipo === "desmalezado"
+        ? { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes }
+        : { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.prioridad, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes };
+
+      const res = await fetch(`${API_URL}/api/${endpoint}/${registro.id}/editar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (res.ok) { alert("✅ Registro actualizado correctamente"); onGuardar(); }
+      else alert("❌ " + (data.detail||"Error al guardar"));
+    } catch { alert("❌ Error de conexión"); }
+    setGuardando(false);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:620, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding:"18px 24px", background:color, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <h2 style={{ margin:0, color:"#FFF", fontSize:16, fontWeight:700 }}>{tituloMap[tipo]}</h2>
+            <p style={{ margin:"2px 0 0", color:"rgba(255,255,255,0.8)", fontSize:12 }}>Folio: {registro.folio} — Modifica solo los campos que necesitas corregir</p>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
+        </div>
+
+        <div style={{ padding:22, display:"flex", flexDirection:"column", gap:14 }}>
+
+          {/* Campos específicos por tipo */}
+          {tipo === "batea" && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Field label="Nombre vecino" required>
+                <input style={inp} value={form.nombre_vecino||""} onChange={e=>set("nombre_vecino",e.target.value)} placeholder="Nombre completo" />
+              </Field>
+              <Field label="RUT">
+                <input style={inp} value={form.rut||""} onChange={e=>set("rut",e.target.value)} placeholder="12.345.678-9" />
+              </Field>
+              <Field label="Dirección" required>
+                <input style={inp} value={form.direccion||""} onChange={e=>set("direccion",e.target.value)} placeholder="Dirección completa" />
+              </Field>
+              <Field label="Teléfono">
+                <input style={inp} value={form.telefono||""} onChange={e=>set("telefono",e.target.value)} placeholder="+56912345678" />
+              </Field>
+              <Field label="Latitud">
+                <input style={{...inp, fontFamily:"monospace"}} type="number" step="any" value={form.latitud||""} onChange={e=>set("latitud",e.target.value)} />
+              </Field>
+              <Field label="Longitud">
+                <input style={{...inp, fontFamily:"monospace"}} type="number" step="any" value={form.longitud||""} onChange={e=>set("longitud",e.target.value)} />
+              </Field>
+              <div style={{ gridColumn:"1/-1" }}>
+                <Field label="Observaciones">
+                  <textarea style={{...inp, minHeight:60, resize:"vertical"}} value={form.observaciones||""} onChange={e=>set("observaciones",e.target.value)} />
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {tipo === "desmalezado" && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Field label="Nombre / Referencia">
+                <input style={inp} value={form.nombre_solicitante||""} onChange={e=>set("nombre_solicitante",e.target.value)} placeholder="Nombre o referencia" />
+              </Field>
+              <Field label="Tipo">
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 0" }}>
+                  <input type="checkbox" checked={form.es_recordatorio||false} onChange={e=>set("es_recordatorio",e.target.checked)} />
+                  <span style={{ fontSize:14 }}>Recordatorio interno</span>
+                </div>
+              </Field>
+              <Field label="Dirección" required>
+                <input style={inp} value={form.direccion||""} onChange={e=>set("direccion",e.target.value)} />
+              </Field>
+              <Field label="Descripción">
+                <input style={inp} value={form.descripcion||""} onChange={e=>set("descripcion",e.target.value)} />
+              </Field>
+              <Field label="Latitud">
+                <input style={{...inp, fontFamily:"monospace"}} type="number" step="any" value={form.latitud||""} onChange={e=>set("latitud",e.target.value)} />
+              </Field>
+              <Field label="Longitud">
+                <input style={{...inp, fontFamily:"monospace"}} type="number" step="any" value={form.longitud||""} onChange={e=>set("longitud",e.target.value)} />
+              </Field>
+            </div>
+          )}
+
+          {tipo === "camino" && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Field label="Nombre / Referencia">
+                <input style={inp} value={form.nombre_solicitante||""} onChange={e=>set("nombre_solicitante",e.target.value)} />
+              </Field>
+              <Field label="Prioridad">
+                <select style={inp} value={form.prioridad||"normal"} onChange={e=>set("prioridad",e.target.value)}>
+                  <option value="normal">Normal</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </Field>
+              <Field label="Dirección" required>
+                <input style={inp} value={form.direccion||""} onChange={e=>set("direccion",e.target.value)} />
+              </Field>
+              <Field label="Tipo de vía">
+                <select style={inp} value={form.tipo_camino||"camino"} onChange={e=>set("tipo_camino",e.target.value)}>
+                  <option value="camino">Camino</option>
+                  <option value="pasaje">Pasaje</option>
+                  <option value="escalera">Escalera</option>
+                  <option value="calle">Calle</option>
+                  <option value="acceso">Acceso vehicular</option>
+                </select>
+              </Field>
+              <Field label="Descripción del problema">
+                <input style={inp} value={form.descripcion_problema||""} onChange={e=>set("descripcion_problema",e.target.value)} />
+              </Field>
+              <Field label="Tipo de registro">
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 0" }}>
+                  <input type="checkbox" checked={form.es_recordatorio||false} onChange={e=>set("es_recordatorio",e.target.checked)} />
+                  <span style={{ fontSize:14 }}>Recordatorio interno</span>
+                </div>
+              </Field>
+              <Field label="Latitud">
+                <input style={{...inp, fontFamily:"monospace"}} type="number" step="any" value={form.latitud||""} onChange={e=>set("latitud",e.target.value)} />
+              </Field>
+              <Field label="Longitud">
+                <input style={{...inp, fontFamily:"monospace"}} type="number" step="any" value={form.longitud||""} onChange={e=>set("longitud",e.target.value)} />
+              </Field>
+            </div>
+          )}
+
+          {/* Fotos ANTES — editables y se pueden agregar después */}
+          <div style={{ background:"#F8FAFE", borderRadius:10, padding:14, border:"1px solid #E3F2FD" }}>
+            <div style={{ fontSize:13, fontWeight:700, color:color, marginBottom:10 }}>📷 Fotos ANTES — puedes agregar o eliminar</div>
+            <MultiFotoUploader label="" fotos={fotosAntes} setFotos={setFotosAntes} />
+          </div>
+
+          {/* Info */}
+          <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
+            ⚠️ Solo se actualizarán los campos que modifiques. El estado, folio y fecha de solicitud no cambian.
+          </div>
+
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+            <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
+            <button onClick={handleGuardar} disabled={guardando} style={{
+              padding:"9px 22px", borderRadius:8, border:"none",
+              background:guardando?"#888":color, color:"#FFF", fontSize:13, fontWeight:700, cursor:guardando?"not-allowed":"pointer"
+            }}>
+              {guardando ? "⏳ Guardando..." : "✅ Guardar Cambios"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -798,6 +986,7 @@ function ModalCierre({ titulo, color, onClose, onConfirmar }) {
 function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [modalCerrarId, setModalCerrarId] = useState(null);
+  const [editando, setEditando] = useState(null);
 
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
@@ -859,6 +1048,9 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
                   </button>
                 )}
                 {d.estado==="completado" && <span style={{ fontSize:11, color:C.verde, fontWeight:600 }}>✅ Completado</span>}
+                <button onClick={()=>setEditando(d)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.verde}`, background:"#FFF", color:C.verde, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  ✏️ Editar
+                </button>
               </div>
             ]
           }))}
@@ -873,6 +1065,11 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
         <ModalCierre titulo="🌿 Cerrar Desmalezado" color={C.verde}
           onClose={()=>setModalCerrarId(null)} onConfirmar={handleCerrar} />
       )}
+      {editando && (
+        <ModalEditar tipo="desmalezado" registro={editando}
+          onClose={()=>setEditando(null)}
+          onGuardar={()=>{ setEditando(null); onRecargar(); }} />
+      )}
     </div>
   );
 }
@@ -881,6 +1078,7 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
   const pc = { urgente:C.rojo, alta:C.naranja, normal:C.verde };
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [modalCerrarId, setModalCerrarId] = useState(null);
+  const [editando, setEditando] = useState(null);
 
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
@@ -943,6 +1141,9 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
                   </button>
                 )}
                 {c.estado==="completado" && <span style={{ fontSize:11, color:C.verde, fontWeight:600 }}>✅ Completado</span>}
+                <button onClick={()=>setEditando(c)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.naranja}`, background:"#FFF", color:C.naranja, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  ✏️ Editar
+                </button>
               </div>
             ]
           }))}
@@ -956,6 +1157,11 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
       {modalCerrarId && (
         <ModalCierre titulo="🛤️ Cerrar Arreglo de Camino" color={C.naranja}
           onClose={()=>setModalCerrarId(null)} onConfirmar={handleCerrar} />
+      )}
+      {editando && (
+        <ModalEditar tipo="camino" registro={editando}
+          onClose={()=>setEditando(null)}
+          onGuardar={()=>{ setEditando(null); onRecargar(); }} />
       )}
     </div>
   );
