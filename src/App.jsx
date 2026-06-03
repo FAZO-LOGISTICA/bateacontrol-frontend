@@ -246,11 +246,7 @@ function ModalBatea({ onClose, onGuardar }) {
 
   const validar = () => {
     const e = {};
-    if (!form.nombre.trim()) e.nombre="Requerido";
-    if (!form.rut.trim()) e.rut="Requerido";
-    if (!form.direccion.trim()) e.direccion="Requerido";
-    if (!form.latitud||isNaN(parseFloat(form.latitud))) e.latitud="Inválida";
-    if (!form.longitud||isNaN(parseFloat(form.longitud))) e.longitud="Inválida";
+    if (!form.nombre.trim()) e.nombre="El nombre es obligatorio para identificar la solicitud";
     setErrores(e); return Object.keys(e).length===0;
   };
 
@@ -258,9 +254,11 @@ function ModalBatea({ onClose, onGuardar }) {
     if (!validar()) return;
     setGuardando(true);
     try {
+      const lat = form.latitud && !isNaN(parseFloat(form.latitud)) ? parseFloat(form.latitud) : null;
+      const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
       const res = await fetch(`${API_URL}/api/solicitudes`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_vecino:form.nombre, rut:form.rut, direccion:form.direccion, telefono:form.telefono, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), observaciones:form.observaciones, fotos_antes:fotosAntes })
+        body: JSON.stringify({ nombre_vecino:form.nombre, rut:form.rut||"SIN-RUT", direccion:form.direccion||"Sin dirección", telefono:form.telefono, latitud:lat, longitud:lon, observaciones:form.observaciones, fotos_antes:fotosAntes })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -280,24 +278,47 @@ function ModalBatea({ onClose, onGuardar }) {
           </div>
         </div>
       )}
+
+      {/* Aviso datos incompletos */}
+      <div style={{ background:"#E3F2FD", border:"1px solid #90CAF9", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.azul }}>
+        💡 Solo el <strong>nombre</strong> es obligatorio. Puedes guardar ahora y completar RUT, coordenadas y fotos después usando <strong>✏️ Editar</strong>.
+      </div>
+
       <SeccionForm titulo="👤 Datos del Vecino" color={C.azul}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Field label="Nombre completo" required error={errores.nombre}>
             <input style={{...inp, borderColor:errores.nombre?C.rojo:"#DDD"}} value={form.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="María González Riquelme" />
           </Field>
-          <Field label="RUT" required error={errores.rut}>
-            <input style={{...inp, borderColor:errores.rut?C.rojo:"#DDD"}} value={form.rut} onChange={e=>set("rut",e.target.value)} onBlur={e=>verificarRUT(e.target.value)} placeholder="12.345.678-9" />
+          <Field label="RUT">
+            <input style={inp} value={form.rut} onChange={e=>set("rut",e.target.value)} onBlur={e=>verificarRUT(e.target.value)} placeholder="12.345.678-9 (opcional)" />
           </Field>
           <Field label="Teléfono">
             <input style={inp} value={form.telefono} onChange={e=>set("telefono",e.target.value)} placeholder="+56912345678" />
           </Field>
-          <Field label="Dirección" required error={errores.direccion}>
-            <input style={{...inp, borderColor:errores.direccion?C.rojo:"#DDD"}} value={form.direccion} onChange={e=>set("direccion",e.target.value)} placeholder="Av. Argentina 1234" />
+          <Field label="Dirección">
+            <input style={inp} value={form.direccion} onChange={e=>set("direccion",e.target.value)} placeholder="Av. Argentina 1234 (opcional)" />
           </Field>
         </div>
       </SeccionForm>
-      <SeccionGeorref errores={errores} latitud={form.latitud} longitud={form.longitud} set={set} />
-      <MultiFotoUploader label="📷 Fotos del sector (ANTES) — máx 5" fotos={fotosAntes} setFotos={setFotosAntes} />
+
+      <div style={{ background:"#F0F7FF", borderRadius:10, padding:16, border:"1px solid #BBDEFB" }}>
+        <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional — puedes agregar después)</span></h3>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <Field label="Latitud">
+            <input style={{...inp, fontFamily:"monospace"}} value={form.latitud} onChange={e=>set("latitud",e.target.value)} placeholder="-33.0458 (opcional)" type="number" step="any" />
+          </Field>
+          <Field label="Longitud">
+            <input style={{...inp, fontFamily:"monospace"}} value={form.longitud} onChange={e=>set("longitud",e.target.value)} placeholder="-71.6197 (opcional)" type="number" step="any" />
+          </Field>
+        </div>
+        {form.latitud && form.longitud && !isNaN(parseFloat(form.latitud)) && !isNaN(parseFloat(form.longitud)) && (
+          <div style={{ marginTop:10, padding:"7px 12px", background:"#E3F2FD", borderRadius:8, fontSize:12, color:C.azul, fontFamily:"monospace" }}>
+            ✅ {parseFloat(form.latitud).toFixed(6)}, {parseFloat(form.longitud).toFixed(6)}
+          </div>
+        )}
+      </div>
+
+      <MultiFotoUploader label="📷 Fotos del sector (ANTES) — máx 5, opcional" fotos={fotosAntes} setFotos={setFotosAntes} />
       <Field label="Observaciones">
         <textarea style={{...inp, minHeight:70, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} placeholder="Información adicional..." />
       </Field>
@@ -315,9 +336,7 @@ function ModalDesmalezado({ onClose, onGuardar }) {
 
   const validar = () => {
     const e = {};
-    if (!form.direccion.trim()) e.direccion="Requerido";
-    if (!form.latitud||isNaN(parseFloat(form.latitud))) e.latitud="Inválida";
-    if (!form.longitud||isNaN(parseFloat(form.longitud))) e.longitud="Inválida";
+    if (!form.direccion.trim()) e.direccion="Al menos la dirección es necesaria para ubicar el punto";
     setErrores(e); return Object.keys(e).length===0;
   };
 
@@ -325,9 +344,11 @@ function ModalDesmalezado({ onClose, onGuardar }) {
     if (!validar()) return;
     setGuardando(true);
     try {
+      const lat = form.latitud && !isNaN(parseFloat(form.latitud)) ? parseFloat(form.latitud) : null;
+      const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
       const res = await fetch(`${API_URL}/api/desmalezados`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), fotos_antes:fotosAntes })
+        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:lat, longitud:lon, fotos_antes:fotosAntes })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -345,6 +366,9 @@ function ModalDesmalezado({ onClose, onGuardar }) {
 
   return (
     <Modal titulo="🌿 Nuevo Desmalezado" color={C.verde} onClose={onClose}>
+      <div style={{ background:"#E8F5E9", border:"1px solid #A5D6A7", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.verde }}>
+        💡 Solo la <strong>dirección</strong> es obligatoria. Las coordenadas y fotos las puedes agregar después con <strong>✏️ Editar</strong>.
+      </div>
       <SeccionForm titulo="📋 Datos del Registro" color={C.verde}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Field label="Nombre / Referencia">
@@ -364,8 +388,18 @@ function ModalDesmalezado({ onClose, onGuardar }) {
           </Field>
         </div>
       </SeccionForm>
-      <SeccionGeorref errores={errores} latitud={form.latitud} longitud={form.longitud} set={set} />
-      <MultiFotoUploader label="📷 Fotos ANTES del desmalezado — máx 5" fotos={fotosAntes} setFotos={setFotosAntes} />
+      <div style={{ background:"#F0F7FF", borderRadius:10, padding:16, border:"1px solid #BBDEFB" }}>
+        <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional)</span></h3>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <Field label="Latitud">
+            <input style={{...inp, fontFamily:"monospace"}} value={form.latitud} onChange={e=>set("latitud",e.target.value)} placeholder="-33.0458 (opcional)" type="number" step="any" />
+          </Field>
+          <Field label="Longitud">
+            <input style={{...inp, fontFamily:"monospace"}} value={form.longitud} onChange={e=>set("longitud",e.target.value)} placeholder="-71.6197 (opcional)" type="number" step="any" />
+          </Field>
+        </div>
+      </div>
+      <MultiFotoUploader label="📷 Fotos ANTES del desmalezado — máx 5, opcional" fotos={fotosAntes} setFotos={setFotosAntes} />
       <div style={{ background:"#E8F5E9", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.verde }}>
         🔧 Si hay una batea pendiente a menos de 100m, el sistema sugerirá crear un Operativo Conjunto automáticamente.
       </div>
@@ -383,9 +417,7 @@ function ModalCamino({ onClose, onGuardar }) {
 
   const validar = () => {
     const e = {};
-    if (!form.direccion.trim()) e.direccion="Requerido";
-    if (!form.latitud||isNaN(parseFloat(form.latitud))) e.latitud="Inválida";
-    if (!form.longitud||isNaN(parseFloat(form.longitud))) e.longitud="Inválida";
+    if (!form.direccion.trim()) e.direccion="Al menos la dirección es necesaria";
     setErrores(e); return Object.keys(e).length===0;
   };
 
@@ -393,9 +425,11 @@ function ModalCamino({ onClose, onGuardar }) {
     if (!validar()) return;
     setGuardando(true);
     try {
+      const lat = form.latitud && !isNaN(parseFloat(form.latitud)) ? parseFloat(form.latitud) : null;
+      const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
       const res = await fetch(`${API_URL}/api/caminos`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.prioridad, latitud:parseFloat(form.latitud), longitud:parseFloat(form.longitud), fotos_antes:fotosAntes })
+        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.prioridad, latitud:lat, longitud:lon, fotos_antes:fotosAntes })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -441,8 +475,21 @@ function ModalCamino({ onClose, onGuardar }) {
           </Field>
         </div>
       </SeccionForm>
-      <SeccionGeorref errores={errores} latitud={form.latitud} longitud={form.longitud} set={set} />
-      <MultiFotoUploader label="📷 Fotos ANTES del arreglo — máx 5" fotos={fotosAntes} setFotos={setFotosAntes} />
+      <div style={{ background:"#F0F7FF", borderRadius:10, padding:16, border:"1px solid #BBDEFB" }}>
+        <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional)</span></h3>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <Field label="Latitud">
+            <input style={{...inp, fontFamily:"monospace"}} value={form.latitud} onChange={e=>set("latitud",e.target.value)} placeholder="-33.0458 (opcional)" type="number" step="any" />
+          </Field>
+          <Field label="Longitud">
+            <input style={{...inp, fontFamily:"monospace"}} value={form.longitud} onChange={e=>set("longitud",e.target.value)} placeholder="-71.6197 (opcional)" type="number" step="any" />
+          </Field>
+        </div>
+      </div>
+      <MultiFotoUploader label="📷 Fotos ANTES del arreglo — máx 5, opcional" fotos={fotosAntes} setFotos={setFotosAntes} />
+      <div style={{ background:"#FFF3E0", border:"1px solid #FFCC80", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
+        💡 Solo la dirección es obligatoria. Completa el resto después con ✏️ Editar.
+      </div>
       <BotonesModal onClose={onClose} onGuardar={handleGuardar} guardando={guardando} subiendo={false} />
     </Modal>
   );
@@ -626,7 +673,10 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering 
             key:s.id, critica:s.nivel_alerta==="critica", par:i%2===0,
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.azul, fontWeight:600, fontSize:12 }}>{s.folio}</span>,
-              <span>{s.nombre_vecino}{s.tuvo_batea_antes&&<span style={{ marginLeft:6, fontSize:10, background:"#FFF3E0", color:"#E65100", padding:"1px 6px", borderRadius:10 }}>⚠ historial</span>}</span>,
+              <span>{s.nombre_vecino}
+                {s.tuvo_batea_antes&&<span style={{ marginLeft:6, fontSize:10, background:"#FFF3E0", color:"#E65100", padding:"1px 6px", borderRadius:10 }}>⚠ historial</span>}
+                {(!s.latitud || s.rut==="SIN-RUT" || s.direccion==="Sin dirección") && <span style={{ marginLeft:6, fontSize:10, background:"#FFF3E0", color:"#E65100", padding:"1px 6px", borderRadius:10 }}>⚠ incompleto</span>}
+              </span>,
               <span style={{ fontSize:12, color:"#666" }}>{s.direccion}</span>,
               <span style={{ fontSize:11, color:"#888", fontFamily:"monospace" }}>{parseFloat(s.latitud||0).toFixed(4)}, {parseFloat(s.longitud||0).toFixed(4)}</span>,
               <Badge estado={s.estado} small />,
