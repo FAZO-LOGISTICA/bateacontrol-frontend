@@ -2290,10 +2290,11 @@ function generarHTMLReporte(tipo, datos) {
   const hoy = new Date().toLocaleDateString("es-CL", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
   const horaGen = new Date().toLocaleTimeString("es-CL");
   const cfg = {
-    batea:      { color:"#1565C0", bg:"#E3F2FD", emoji:"🗑️", titulo:"Asignación de Batea Comunitaria" },
-    desmalezado:{ color:"#2E7D32", bg:"#E8F5E9", emoji:"🌿", titulo:"Operativo de Desmalezado" },
-    camino:     { color:"#E65100", bg:"#FFF3E0", emoji:"🛤️", titulo:"Arreglo de Camino" },
-    operativo:  { color:"#6A1B9A", bg:"#F3E5F5", emoji:"🔧", titulo:"Operativo Conjunto Batea + Desmalezado" },
+    batea:            { color:"#1565C0", bg:"#E3F2FD", emoji:"🗑️", titulo:"Asignación de Batea Comunitaria" },
+    desmalezado:      { color:"#2E7D32", bg:"#E8F5E9", emoji:"🌿", titulo:"Operativo de Desmalezado" },
+    camino:           { color:"#E65100", bg:"#FFF3E0", emoji:"🛤️", titulo:"Arreglo de Camino" },
+    operativo:        { color:"#6A1B9A", bg:"#F3E5F5", emoji:"🔧", titulo:"Operativo Conjunto Batea + Desmalezado" },
+    operativo_central:{ color:"#1B5E20", bg:"#E8F5E9", emoji:"🏛️", titulo:"Operativo Central Municipal" },
   }[tipo] || { color:"#1565C0", bg:"#E3F2FD", emoji:"📄", titulo:"Informe" };
 
   const renderFotos = (fotos, label) => {
@@ -2341,6 +2342,15 @@ function generarHTMLReporte(tipo, datos) {
     <div class="dato"><div class="dato-label">Problema Reportado</div><div class="dato-valor">${datos.descripcion_problema||"—"}</div></div>
     <div class="dato"><div class="dato-label">Prioridad</div><div class="dato-valor">${(datos.prioridad||"normal").toUpperCase()}</div></div>
     <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
+  ` : tipo === "operativo_central" ? `
+    <div class="dato"><div class="dato-label">Código</div><div class="dato-valor">${datos.codigo||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Tipo de Operativo</div><div class="dato-valor">${datos.tipo_operativo||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Departamento</div><div class="dato-valor">${datos.departamento||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Responsable Principal</div><div class="dato-valor">${datos.responsable_principal||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Sector / Área</div><div class="dato-valor">${datos.sector||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Prioridad</div><div class="dato-valor">${(datos.prioridad||"normal").toUpperCase()}</div></div>
+    ${datos.equipo?.length>0?`<div class="dato" style="grid-column:1/-1"><div class="dato-label">Equipo / Personal</div><div class="dato-valor">${datos.equipo.join(", ")}</div></div>`:""}
+    ${datos.servicios_incluidos?.length>0?`<div class="dato" style="grid-column:1/-1"><div class="dato-label">Servicios Incluidos</div><div class="dato-valor">${datos.servicios_incluidos.join(" · ")}</div></div>`:""}
   ` : `
     <div class="dato"><div class="dato-label">Código Operativo</div><div class="dato-valor">${datos.codigo||"—"}</div></div>
     <div class="dato"><div class="dato-label">Batea Asignada</div><div class="dato-valor">${datos.numero_batea||"—"}</div></div>
@@ -2515,12 +2525,13 @@ function generarReporte(tipo, datos) {
 }
 
 // ── VISTA REPORTES ────────────────────────────────────────────────────────────
-function ViewReportes({ solicitudes, desmalezados, caminos, operativos }) {
+function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativosCentrales }) {
   const [filtro, setFiltro] = useState("todos");
   const bateasAsig = solicitudes.filter(s => s.numero_batea);
   const desAsig = desmalezados.filter(d => d.estado !== "pendiente");
   const camAsig = caminos.filter(c => c.estado !== "pendiente");
-  const total = bateasAsig.length + desAsig.length + camAsig.length + operativos.length;
+  const ocLista = operativosCentrales || [];
+  const total = bateasAsig.length + desAsig.length + camAsig.length + operativos.length + ocLista.length;
 
   const ItemReporte = ({ emoji, folio, titulo, subtitulo, info, color, onGenerar }) => (
     <div style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`4px solid ${color}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -2553,6 +2564,7 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos }) {
           { id:"desmalezados", label:"🌿 Desmalezados", count:desAsig.length },
           { id:"caminos", label:"🛤️ Caminos", count:camAsig.length },
           { id:"operativos", label:"🔧 Op. Conjuntos", count:operativos.length },
+          { id:"op_central", label:"🏛️ Op. Central", count:ocLista.length },
         ].map(f => (
           <button key={f.id} onClick={()=>setFiltro(f.id)} style={{
             padding:"8px 16px", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer",
@@ -2585,6 +2597,13 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos }) {
           <ItemReporte key={op.id} emoji="🔧" folio={op.codigo} titulo={`Batea: ${op.numero_batea} — ${op.nombre_vecino||""}`} subtitulo={op.direccion_batea||""}
             info={`${op.fecha_inicio?`Inicio: ${op.fecha_inicio}`:""}${op.fecha_termino?` → ${op.fecha_termino}`:""} · 📷 ${(op.fotos_antes?.length||0)} antes / ${(op.fotos_despues?.length||0)} después`}
             color="#6A1B9A" onGenerar={()=>generarReporte("operativo",op)} />
+        ))}
+        {(filtro==="todos"||filtro==="op_central") && ocLista.map(op => (
+          <ItemReporte key={op.id} emoji="🏛️" folio={op.codigo}
+            titulo={op.titulo}
+            subtitulo={`${op.departamento||""} ${op.departamento&&op.sector?"·":""} ${op.sector||""}`}
+            info={`${op.responsable_principal?`👤 ${op.responsable_principal}`:""} ${op.fecha_inicio?`· Inicio: ${op.fecha_inicio}`:""}${op.fecha_termino?` → ${op.fecha_termino}`:""} · 📷 ${(op.fotos_antes?.length||0)} antes / ${(op.fotos_despues?.length||0)} después`}
+            color="#1B5E20" onGenerar={()=>generarReporte("operativo_central",op)} />
         ))}
         {total === 0 && (
           <div style={{ textAlign:"center", padding:60, color:"#888" }}>
@@ -2664,7 +2683,7 @@ export default function App() {
       case "op_central":   return <ViewOperativoCentral operativos={operativosCentrales} loading={loading} onRecargar={cargarDatos} />;
       case "mapa":         return <ViewMapa solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} />;
       case "alertas":      return <ViewAlertas solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} />;
-      case "reportes":     return <ViewReportes solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} />;
+      case "reportes":     return <ViewReportes solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} operativosCentrales={operativosCentrales} />;
       default: return <div style={{ padding:40, textAlign:"center", color:"#888" }}><div style={{ fontSize:48, marginBottom:16 }}>🚧</div><h2>Módulo en desarrollo</h2></div>;
     }
   };
