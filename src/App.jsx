@@ -1974,10 +1974,174 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
   );
 }
 
+function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
+  const [form, setForm] = useState({
+    titulo: operativo.titulo || "",
+    descripcion: operativo.descripcion || "",
+    tipo_operativo: operativo.tipo_operativo || "general",
+    departamento: operativo.departamento || "",
+    responsable_principal: operativo.responsable_principal || "",
+    prioridad: operativo.prioridad || "normal",
+    sector: operativo.sector || "",
+    fecha_programada: operativo.fecha_programada
+      ? operativo.fecha_programada.split("/").reverse().join("-")
+      : new Date().toISOString().split("T")[0],
+    latitud: operativo.latitud || "",
+    longitud: operativo.longitud || "",
+    observaciones: operativo.observaciones || "",
+  });
+  const [equipo, setEquipo] = useState(operativo.equipo || []);
+  const [nuevoMiembro, setNuevoMiembro] = useState("");
+  const [servicios, setServicios] = useState(operativo.servicios_incluidos || []);
+  const [fotosAntes, setFotosAntes] = useState(operativo.fotos_antes || []);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const toggleServicio = (s) => setServicios(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev,s]);
+  const agregarMiembro = () => { if (nuevoMiembro.trim()) { setEquipo(e=>[...e,nuevoMiembro.trim()]); setNuevoMiembro(""); } };
+
+  const handleGuardar = async () => {
+    if (!form.titulo.trim()) { setError("El título es obligatorio"); return; }
+    setGuardando(true);
+    try {
+      const lat = form.latitud && !isNaN(parseFloat(form.latitud)) ? parseFloat(form.latitud) : null;
+      const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
+      const res = await fetch(`${API_URL}/api/operativos-centrales/${operativo.id}/editar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ ...form, latitud:lat, longitud:lon, equipo, servicios_incluidos:servicios, fotos_antes:fotosAntes })
+      });
+      const data = await res.json();
+      if (res.ok) { alert("✅ Operativo actualizado correctamente"); onGuardar(); }
+      else setError(data.detail||"Error al guardar");
+    } catch { setError("Error de conexión"); }
+    setGuardando(false);
+  };
+
+  const serviciosOpts = ["🗑️ Bateas","🌿 Desmalezado","🛤️ Arreglo Caminos","💡 Iluminación","🌳 Áreas Verdes","🧹 Limpieza","🚧 Pavimentación","🔧 Mantención","🚒 Emergencia","📋 Otro"];
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:680, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding:"18px 24px", background:COLOR_OC, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <h2 style={{ margin:0, color:"#FFF", fontSize:17, fontWeight:700 }}>✏️ Editar Operativo Central</h2>
+            <p style={{ margin:"2px 0 0", color:"rgba(255,255,255,0.8)", fontSize:12 }}>Código: {operativo.codigo} — Modifica solo lo que necesitas corregir</p>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
+        </div>
+        <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
+          {error && <div style={{ background:"#FFEBEE", border:"1px solid #FFCDD2", borderRadius:8, padding:"10px 14px", fontSize:13, color:C.rojo }}>{error}</div>}
+
+          <SeccionForm titulo="📋 Identificación del Operativo" color={COLOR_OC}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <div style={{ gridColumn:"1/-1" }}>
+                <Field label="Título del Operativo" required>
+                  <input style={inp} value={form.titulo} onChange={e=>set("titulo",e.target.value)} />
+                </Field>
+              </div>
+              <Field label="Tipo de Operativo">
+                <select style={inp} value={form.tipo_operativo} onChange={e=>set("tipo_operativo",e.target.value)}>
+                  {["general","bateas","desmalezado","arreglo_caminos","limpieza","pavimentación","iluminación","areas_verdes","emergencia","otro"].map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1).replace("_"," ")}</option>)}
+                </select>
+              </Field>
+              <Field label="Prioridad">
+                <select style={inp} value={form.prioridad} onChange={e=>set("prioridad",e.target.value)}>
+                  <option value="normal">Normal</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </Field>
+              <Field label="Departamento / Dirección">
+                <input style={inp} value={form.departamento} onChange={e=>set("departamento",e.target.value)} />
+              </Field>
+              <Field label="Responsable Principal">
+                <input style={inp} value={form.responsable_principal} onChange={e=>set("responsable_principal",e.target.value)} />
+              </Field>
+              <Field label="Sector / Área">
+                <input style={inp} value={form.sector} onChange={e=>set("sector",e.target.value)} />
+              </Field>
+              <Field label="Fecha Programada">
+                <input style={inp} type="date" value={form.fecha_programada} onChange={e=>set("fecha_programada",e.target.value)} />
+              </Field>
+              <div style={{ gridColumn:"1/-1" }}>
+                <Field label="Descripción">
+                  <textarea style={{...inp, minHeight:70, resize:"vertical"}} value={form.descripcion} onChange={e=>set("descripcion",e.target.value)} />
+                </Field>
+              </div>
+            </div>
+          </SeccionForm>
+
+          {/* Equipo */}
+          <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:COLOR_OC, marginBottom:10 }}>👷 Equipo / Personal</div>
+            <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+              <input style={{...inp, flex:1}} value={nuevoMiembro} onChange={e=>setNuevoMiembro(e.target.value)} onKeyDown={e=>e.key==="Enter"&&agregarMiembro()} placeholder="Nombre del integrante o cuadrilla" />
+              <button onClick={agregarMiembro} style={{ padding:"0 18px", borderRadius:8, border:"none", background:COLOR_OC, color:"#FFF", fontSize:14, fontWeight:600, cursor:"pointer" }}>+</button>
+            </div>
+            {equipo.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {equipo.map((m,i) => (
+                  <span key={i} style={{ background:BG_OC, color:COLOR_OC, border:`1px solid ${COLOR_OC}33`, borderRadius:20, padding:"3px 12px", fontSize:12, display:"flex", alignItems:"center", gap:6 }}>
+                    {m}
+                    <button onClick={()=>setEquipo(e=>e.filter((_,j)=>j!==i))} style={{ background:"none", border:"none", cursor:"pointer", color:COLOR_OC, fontSize:14, lineHeight:1 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Servicios */}
+          <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:COLOR_OC, marginBottom:10 }}>🔧 Servicios incluidos</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {serviciosOpts.map(s => (
+                <button key={s} onClick={()=>toggleServicio(s)} style={{
+                  padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+                  background:servicios.includes(s)?COLOR_OC:"#FFF",
+                  color:servicios.includes(s)?"#FFF":"#555",
+                  border:servicios.includes(s)?`2px solid ${COLOR_OC}`:"1px solid #DDD"
+                }}>{s}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Georref */}
+          <div style={{ background:"#F0F7FF", borderRadius:10, padding:14, border:"1px solid #BBDEFB" }}>
+            <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional)</span></h3>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <Field label="Latitud"><input style={{...inp, fontFamily:"monospace"}} value={form.latitud} onChange={e=>set("latitud",e.target.value)} type="number" step="any" /></Field>
+              <Field label="Longitud"><input style={{...inp, fontFamily:"monospace"}} value={form.longitud} onChange={e=>set("longitud",e.target.value)} type="number" step="any" /></Field>
+            </div>
+          </div>
+
+          <MultiFotoUploader label="📷 Fotos ANTES — editar o agregar (máx 5)" fotos={fotosAntes} setFotos={setFotosAntes} />
+
+          <Field label="Observaciones">
+            <textarea style={{...inp, minHeight:60, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} />
+          </Field>
+
+          <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
+            ⚠️ Solo se actualizarán los campos que modifiques. El código, estado y fecha de creación no cambian.
+          </div>
+
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+            <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
+            <button onClick={handleGuardar} disabled={guardando} style={{ padding:"9px 24px", borderRadius:8, border:"none", background:guardando?"#888":COLOR_OC, color:"#FFF", fontSize:13, fontWeight:700, cursor:guardando?"not-allowed":"pointer" }}>
+              {guardando ? "⏳ Guardando..." : "✅ Guardar Cambios"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ViewOperativoCentral({ operativos, loading, onRecargar }) {
   const [modalNuevo, setModalNuevo] = useState(false);
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [modalCerrarId, setModalCerrarId] = useState(null);
+  const [editando, setEditando] = useState(null);
 
   const pc = { urgente:C.rojo, alta:C.naranja, normal:C.verde };
 
@@ -2090,8 +2254,11 @@ function ViewOperativoCentral({ operativos, loading, onRecargar }) {
                         📷 Cerrar
                       </button>
                     )}
+                    <button onClick={()=>setEditando(op)} style={{ padding:"7px 14px", borderRadius:8, border:`1px solid ${COLOR_OC}`, background:"#FFF", color:COLOR_OC, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                      ✏️ Editar
+                    </button>
                     <button onClick={async ()=>{
-                      if (!window.confirm(`¿Eliminar el operativo ${op.codigo}?`)) return;
+                      if (!window.confirm(`¿Eliminar el operativo ${op.codigo} — "${op.titulo}"?\n\nEsto no se puede deshacer.`)) return;
                       const res = await fetch(`${API_URL}/api/operativos-centrales/${op.id}`,{method:"DELETE"});
                       const data = await res.json();
                       if (res.ok) { alert("✅ "+data.mensaje); onRecargar(); }
@@ -2110,6 +2277,7 @@ function ViewOperativoCentral({ operativos, loading, onRecargar }) {
       {modalNuevo && <ModalNuevoOperativoCentral onClose={()=>setModalNuevo(false)} onGuardar={()=>{ setModalNuevo(false); onRecargar(); }} />}
       {modalAsignarId && <ModalAsignarServicio titulo="🏛️ Asignar Operativo Central" color={COLOR_OC} onClose={()=>setModalAsignarId(null)} onConfirmar={handleAsignar} />}
       {modalCerrarId && <ModalCierre titulo="🏛️ Cerrar Operativo Central" color={COLOR_OC} onClose={()=>setModalCerrarId(null)} onConfirmar={handleCerrar} />}
+      {editando && <ModalEditarOperativoCentral operativo={editando} onClose={()=>setEditando(null)} onGuardar={()=>{ setEditando(null); onRecargar(); }} />}
     </div>
   );
 }
