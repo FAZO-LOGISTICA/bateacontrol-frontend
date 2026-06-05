@@ -328,7 +328,7 @@ function ModalBatea({ onClose, onGuardar }) {
 }
 
 function ModalDesmalezado({ onClose, onGuardar }) {
-  const [form, setForm] = useState({ nombre:"", es_recordatorio:false, direccion:"", descripcion:"", latitud:"", longitud:"" });
+  const [form, setForm] = useState({ nombre:"", rut:"", telefono:"", es_recordatorio:false, direccion:"", descripcion:"", observaciones:"", latitud:"", longitud:"" });
   const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
@@ -348,7 +348,7 @@ function ModalDesmalezado({ onClose, onGuardar }) {
       const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
       const res = await fetch(`${API_URL}/api/desmalezados`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:lat, longitud:lon, fotos_antes:fotosAntes })
+        body: JSON.stringify({ nombre_solicitante:form.nombre, rut:form.rut||"SIN-RUT", telefono:form.telefono, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, observaciones:form.observaciones, latitud:lat, longitud:lon, fotos_antes:fotosAntes })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -374,6 +374,12 @@ function ModalDesmalezado({ onClose, onGuardar }) {
           <Field label="Nombre / Referencia">
             <input style={inp} value={form.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="Nombre o referencia interna" />
           </Field>
+          <Field label="RUT">
+            <input style={inp} value={form.rut} onChange={e=>set("rut",e.target.value)} placeholder="12.345.678-9 (opcional)" />
+          </Field>
+          <Field label="Teléfono">
+            <input style={inp} value={form.telefono} onChange={e=>set("telefono",e.target.value)} placeholder="+56912345678 (opcional)" />
+          </Field>
           <Field label="Tipo de registro">
             <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 0", cursor:"pointer" }}>
               <input type="checkbox" checked={form.es_recordatorio} onChange={e=>set("es_recordatorio",e.target.checked)} />
@@ -386,6 +392,11 @@ function ModalDesmalezado({ onClose, onGuardar }) {
           <Field label="Descripción">
             <input style={inp} value={form.descripcion} onChange={e=>set("descripcion",e.target.value)} placeholder="Tipo de vegetación, tamaño..." />
           </Field>
+          <div style={{ gridColumn:"1/-1" }}>
+            <Field label="Observaciones">
+              <textarea style={{...inp, minHeight:60, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} placeholder="Información adicional..." />
+            </Field>
+          </div>
         </div>
       </SeccionForm>
       <div style={{ background:"#F0F7FF", borderRadius:10, padding:16, border:"1px solid #BBDEFB" }}>
@@ -409,7 +420,7 @@ function ModalDesmalezado({ onClose, onGuardar }) {
 }
 
 function ModalCamino({ onClose, onGuardar }) {
-  const [form, setForm] = useState({ nombre:"", es_recordatorio:false, direccion:"", tipo_camino:"camino", descripcion_problema:"", prioridad:"normal", latitud:"", longitud:"" });
+  const [form, setForm] = useState({ nombre:"", rut:"", telefono:"", es_recordatorio:false, direccion:"", tipo_camino:"camino", descripcion_problema:"", observaciones:"", prioridad:"normal", latitud:"", longitud:"" });
   const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
@@ -429,7 +440,7 @@ function ModalCamino({ onClose, onGuardar }) {
       const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
       const res = await fetch(`${API_URL}/api/caminos`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_solicitante:form.nombre, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.prioridad, latitud:lat, longitud:lon, fotos_antes:fotosAntes })
+        body: JSON.stringify({ nombre_solicitante:form.nombre, rut:form.rut||"SIN-RUT", telefono:form.telefono, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, observaciones:form.observaciones, prioridad:form.prioridad, latitud:lat, longitud:lon, fotos_antes:fotosAntes })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -440,10 +451,19 @@ function ModalCamino({ onClose, onGuardar }) {
 
   return (
     <Modal titulo="🛤️ Nuevo Arreglo de Camino" color={C.naranja} onClose={onClose}>
+      <div style={{ background:"#FFF3E0", border:"1px solid #FFCC80", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
+        💡 Solo la <strong>dirección</strong> es obligatoria. Completa el resto después con ✏️ Editar.
+      </div>
       <SeccionForm titulo="📋 Datos del Registro" color={C.naranja}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Field label="Nombre / Referencia">
             <input style={inp} value={form.nombre} onChange={e=>set("nombre",e.target.value)} placeholder="Nombre o referencia interna" />
+          </Field>
+          <Field label="RUT">
+            <input style={inp} value={form.rut} onChange={e=>set("rut",e.target.value)} placeholder="12.345.678-9 (opcional)" />
+          </Field>
+          <Field label="Teléfono">
+            <input style={inp} value={form.telefono} onChange={e=>set("telefono",e.target.value)} placeholder="+56912345678 (opcional)" />
           </Field>
           <Field label="Tipo de registro">
             <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 0", cursor:"pointer" }}>
@@ -473,6 +493,11 @@ function ModalCamino({ onClose, onGuardar }) {
           <Field label="Descripción del problema">
             <input style={inp} value={form.descripcion_problema} onChange={e=>set("descripcion_problema",e.target.value)} placeholder="Bache, derrumbe, erosión..." />
           </Field>
+          <div style={{ gridColumn:"1/-1" }}>
+            <Field label="Observaciones">
+              <textarea style={{...inp, minHeight:60, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} placeholder="Información adicional..." />
+            </Field>
+          </div>
         </div>
       </SeccionForm>
       <div style={{ background:"#F0F7FF", borderRadius:10, padding:16, border:"1px solid #BBDEFB" }}>
@@ -502,6 +527,7 @@ function Sidebar({ activeView, setActiveView }) {
     { id:"desmalezados", icon:"🌿", label:"Desmalezados"     },
     { id:"caminos",      icon:"🛤️", label:"Arreglo Caminos"  },
     { id:"operativos",   icon:"🔧", label:"Op. Conjuntos"    },
+    { id:"op_central",   icon:"🏛️", label:"Op. Central"      },
     { id:"mapa",         icon:"🗺️", label:"Mapa Operacional" },
     { id:"alertas",      icon:"🔔", label:"Alertas"          },
     { id:"reportes",     icon:"📄", label:"Reportes"         },
@@ -1787,6 +1813,308 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// OPERATIVO CENTRAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const TIPOS_OPERATIVO = [
+  "general","bateas","desmalezado","arreglo_caminos","limpieza",
+  "pavimentación","iluminación","areas_verdes","emergencia","otro"
+];
+const COLOR_OC = "#1B5E20";
+const BG_OC = "#E8F5E9";
+
+function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
+  const hoy = new Date().toISOString().split("T")[0];
+  const [form, setForm] = useState({
+    titulo:"", descripcion:"", tipo_operativo:"general",
+    departamento:"", responsable_principal:"",
+    prioridad:"normal", sector:"", fecha_programada:hoy,
+    latitud:"", longitud:"", observaciones:""
+  });
+  const [equipo, setEquipo] = useState([]);
+  const [nuevoMiembro, setNuevoMiembro] = useState("");
+  const [servicios, setServicios] = useState([]);
+  const [fotosAntes, setFotosAntes] = useState([]);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const toggleServicio = (s) => setServicios(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev,s]);
+  const agregarMiembro = () => { if (nuevoMiembro.trim()) { setEquipo(e=>[...e,nuevoMiembro.trim()]); setNuevoMiembro(""); } };
+
+  const handleGuardar = async () => {
+    if (!form.titulo.trim()) { setError("El título es obligatorio"); return; }
+    setGuardando(true);
+    try {
+      const lat = form.latitud && !isNaN(parseFloat(form.latitud)) ? parseFloat(form.latitud) : null;
+      const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
+      const res = await fetch(`${API_URL}/api/operativos-centrales`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ ...form, latitud:lat, longitud:lon, equipo, servicios_incluidos:servicios, fotos_antes:fotosAntes })
+      });
+      const data = await res.json();
+      if (res.ok) { alert(`✅ ${data.mensaje}`); onGuardar(); }
+      else setError(data.detail||"Error al guardar");
+    } catch { setError("Error de conexión"); }
+    setGuardando(false);
+  };
+
+  const serviciosOpts = ["🗑️ Bateas","🌿 Desmalezado","🛤️ Arreglo Caminos","💡 Iluminación","🌳 Áreas Verdes","🧹 Limpieza","🚧 Pavimentación","🔧 Mantención","🚒 Emergencia","📋 Otro"];
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:680, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding:"18px 24px", background:COLOR_OC, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <h2 style={{ margin:0, color:"#FFF", fontSize:17, fontWeight:700 }}>🏛️ Nuevo Operativo Central</h2>
+            <p style={{ margin:"2px 0 0", color:"rgba(255,255,255,0.8)", fontSize:12 }}>Operativo ejecutado desde la Dirección de Operaciones</p>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
+        </div>
+        <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
+          {error && <div style={{ background:"#FFEBEE", border:"1px solid #FFCDD2", borderRadius:8, padding:"10px 14px", fontSize:13, color:C.rojo }}>{error}</div>}
+
+          <SeccionForm titulo="📋 Identificación del Operativo" color={COLOR_OC}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <div style={{ gridColumn:"1/-1" }}>
+                <Field label="Título del Operativo" required>
+                  <input style={inp} value={form.titulo} onChange={e=>set("titulo",e.target.value)} placeholder="Ej: Operativo Limpieza Sector Norte — Junio 2026" />
+                </Field>
+              </div>
+              <Field label="Tipo de Operativo">
+                <select style={inp} value={form.tipo_operativo} onChange={e=>set("tipo_operativo",e.target.value)}>
+                  {TIPOS_OPERATIVO.map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1).replace("_"," ")}</option>)}
+                </select>
+              </Field>
+              <Field label="Prioridad">
+                <select style={inp} value={form.prioridad} onChange={e=>set("prioridad",e.target.value)}>
+                  <option value="normal">Normal</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </Field>
+              <Field label="Departamento / Dirección">
+                <input style={inp} value={form.departamento} onChange={e=>set("departamento",e.target.value)} placeholder="Dirección de Operaciones" />
+              </Field>
+              <Field label="Responsable Principal">
+                <input style={inp} value={form.responsable_principal} onChange={e=>set("responsable_principal",e.target.value)} placeholder="Nombre del responsable" />
+              </Field>
+              <Field label="Sector / Área">
+                <input style={inp} value={form.sector} onChange={e=>set("sector",e.target.value)} placeholder="Sector Norte, Villa X..." />
+              </Field>
+              <Field label="Fecha Programada">
+                <input style={inp} type="date" value={form.fecha_programada} onChange={e=>set("fecha_programada",e.target.value)} />
+              </Field>
+              <div style={{ gridColumn:"1/-1" }}>
+                <Field label="Descripción">
+                  <textarea style={{...inp, minHeight:70, resize:"vertical"}} value={form.descripcion} onChange={e=>set("descripcion",e.target.value)} placeholder="Descripción del operativo, objetivos, alcance..." />
+                </Field>
+              </div>
+            </div>
+          </SeccionForm>
+
+          {/* Equipo */}
+          <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:COLOR_OC, marginBottom:10 }}>👷 Equipo / Personal</div>
+            <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+              <input style={{...inp, flex:1}} value={nuevoMiembro} onChange={e=>setNuevoMiembro(e.target.value)} onKeyDown={e=>e.key==="Enter"&&agregarMiembro()} placeholder="Nombre del integrante o cuadrilla" />
+              <button onClick={agregarMiembro} style={{ padding:"0 18px", borderRadius:8, border:"none", background:COLOR_OC, color:"#FFF", fontSize:14, fontWeight:600, cursor:"pointer" }}>+</button>
+            </div>
+            {equipo.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {equipo.map((m,i) => (
+                  <span key={i} style={{ background:BG_OC, color:COLOR_OC, border:`1px solid ${COLOR_OC}33`, borderRadius:20, padding:"3px 12px", fontSize:12, display:"flex", alignItems:"center", gap:6 }}>
+                    {m}
+                    <button onClick={()=>setEquipo(e=>e.filter((_,j)=>j!==i))} style={{ background:"none", border:"none", cursor:"pointer", color:COLOR_OC, fontSize:14, lineHeight:1 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Servicios incluidos */}
+          <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:COLOR_OC, marginBottom:10 }}>🔧 Servicios incluidos en este operativo</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {serviciosOpts.map(s => (
+                <button key={s} onClick={()=>toggleServicio(s)} style={{
+                  padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+                  background:servicios.includes(s)?COLOR_OC:"#FFF",
+                  color:servicios.includes(s)?"#FFF":"#555",
+                  border:servicios.includes(s)?`2px solid ${COLOR_OC}`:"1px solid #DDD"
+                }}>{s}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Georref */}
+          <div style={{ background:"#F0F7FF", borderRadius:10, padding:14, border:"1px solid #BBDEFB" }}>
+            <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional)</span></h3>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <Field label="Latitud"><input style={{...inp, fontFamily:"monospace"}} value={form.latitud} onChange={e=>set("latitud",e.target.value)} placeholder="-33.0458" type="number" step="any" /></Field>
+              <Field label="Longitud"><input style={{...inp, fontFamily:"monospace"}} value={form.longitud} onChange={e=>set("longitud",e.target.value)} placeholder="-71.6197" type="number" step="any" /></Field>
+            </div>
+          </div>
+
+          <MultiFotoUploader label="📷 Fotos ANTES del operativo — máx 5" fotos={fotosAntes} setFotos={setFotosAntes} />
+
+          <Field label="Observaciones">
+            <textarea style={{...inp, minHeight:60, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} placeholder="Notas adicionales, condiciones especiales..." />
+          </Field>
+
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+            <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
+            <button onClick={handleGuardar} disabled={guardando} style={{ padding:"9px 24px", borderRadius:8, border:"none", background:guardando?"#888":COLOR_OC, color:"#FFF", fontSize:13, fontWeight:700, cursor:guardando?"not-allowed":"pointer" }}>
+              {guardando ? "⏳ Guardando..." : "✅ Crear Operativo Central"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ViewOperativoCentral({ operativos, loading, onRecargar }) {
+  const [modalNuevo, setModalNuevo] = useState(false);
+  const [modalAsignarId, setModalAsignarId] = useState(null);
+  const [modalCerrarId, setModalCerrarId] = useState(null);
+
+  const pc = { urgente:C.rojo, alta:C.naranja, normal:C.verde };
+
+  const handleAsignar = async (fechaInicio, diasUso, responsable) => {
+    try {
+      const res = await fetch(`${API_URL}/api/operativos-centrales/${modalAsignarId}/asignar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ fecha_inicio:fechaInicio, dias_uso:diasUso, responsable_principal:responsable, equipo:[] })
+      });
+      const data = await res.json();
+      if (res.ok) { alert(`✅ ${data.mensaje}`); setModalAsignarId(null); onRecargar(); }
+      else alert("❌ "+(data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+
+  const handleCerrar = async (fotos_despues, observaciones) => {
+    try {
+      const res = await fetch(`${API_URL}/api/operativos-centrales/${modalCerrarId}/cerrar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ fotos_despues, observaciones_cierre:observaciones })
+      });
+      const data = await res.json();
+      if (res.ok) { alert("✅ Operativo Central cerrado"); setModalCerrarId(null); onRecargar(); }
+      else alert("❌ "+(data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+
+  const estadoColor = { planificado:C.azul, en_ejecucion:C.naranja, completado:C.verde };
+  const estadoBg = { planificado:C.azulS, en_ejecucion:C.naranjaS, completado:C.verdeS };
+
+  return (
+    <div style={{ padding:28 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+        <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🏛️ Operativos Centrales</h1>
+        <button onClick={()=>setModalNuevo(true)} style={{ background:COLOR_OC, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+          + Nuevo Operativo Central
+        </button>
+      </div>
+      <p style={{ margin:"0 0 20px", color:"#666", fontSize:14 }}>
+        Operativos mayores ejecutados desde la Dirección de Operaciones o la Municipalidad — bateas, desmalezados, caminos, limpieza, emergencias y más.
+      </p>
+
+      {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> :
+        operativos.length === 0 ? (
+          <div style={{ textAlign:"center", padding:60, background:"#F8F8F8", borderRadius:12, color:"#888" }}>
+            <div style={{ fontSize:48, marginBottom:12 }}>🏛️</div>
+            <div style={{ fontSize:16, fontWeight:600 }}>Sin operativos centrales registrados</div>
+            <div style={{ fontSize:13, marginTop:6 }}>Registra aquí los operativos municipales mayores que no quedaban en ningún otro módulo.</div>
+          </div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            {operativos.map(op => (
+              <div key={op.id} style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`5px solid ${estadoColor[op.estado]||COLOR_OC}`, borderRadius:12, padding:"18px 22px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16 }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                      <span style={{ fontWeight:700, color:COLOR_OC, fontFamily:"monospace", fontSize:13 }}>{op.codigo}</span>
+                      <span style={{ background:estadoBg[op.estado]||BG_OC, color:estadoColor[op.estado]||COLOR_OC, border:`1px solid ${estadoColor[op.estado]||COLOR_OC}33`, borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:600 }}>
+                        {op.estado?.replace("_"," ").toUpperCase()}
+                      </span>
+                      <span style={{ background:pc[op.prioridad]+"22", color:pc[op.prioridad], border:`1px solid ${pc[op.prioridad]}33`, borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:600 }}>
+                        {op.prioridad}
+                      </span>
+                    </div>
+                    <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>{op.titulo}</div>
+                    <div style={{ fontSize:13, color:"#555", marginBottom:6 }}>{op.descripcion}</div>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:16, fontSize:12, color:"#888" }}>
+                      {op.departamento && <span>🏢 {op.departamento}</span>}
+                      {op.responsable_principal && <span>👤 {op.responsable_principal}</span>}
+                      {op.sector && <span>📍 {op.sector}</span>}
+                      {op.fecha_programada && <span>📅 {op.fecha_programada}</span>}
+                      {op.fecha_inicio && <span>▶️ {op.fecha_inicio} → {op.fecha_termino||"..."}</span>}
+                    </div>
+                    {op.servicios_incluidos?.length > 0 && (
+                      <div style={{ marginTop:8, display:"flex", flexWrap:"wrap", gap:6 }}>
+                        {op.servicios_incluidos.map((s,i)=>(
+                          <span key={i} style={{ background:BG_OC, color:COLOR_OC, borderRadius:20, padding:"2px 10px", fontSize:11 }}>{s}</span>
+                        ))}
+                      </div>
+                    )}
+                    {op.equipo?.length > 0 && (
+                      <div style={{ marginTop:6, fontSize:12, color:"#666" }}>
+                        👷 {op.equipo.join(", ")}
+                      </div>
+                    )}
+                    {/* Fotos miniatura */}
+                    {(op.fotos_antes?.length > 0 || op.fotos_despues?.length > 0) && (
+                      <div style={{ marginTop:8, display:"flex", gap:6 }}>
+                        {op.fotos_antes?.slice(0,3).map((url,i)=>(
+                          <a key={i} href={url} target="_blank" rel="noreferrer">
+                            <img src={url} alt="antes" style={{ width:36,height:36,objectFit:"cover",borderRadius:6,border:"2px solid #DDD" }} />
+                          </a>
+                        ))}
+                        {op.fotos_despues?.slice(0,3).map((url,i)=>(
+                          <a key={i} href={url} target="_blank" rel="noreferrer">
+                            <img src={url} alt="después" style={{ width:36,height:36,objectFit:"cover",borderRadius:6,border:`2px solid ${C.verde}` }} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6, minWidth:110 }}>
+                    {op.estado==="planificado" && (
+                      <button onClick={()=>setModalAsignarId(op.id)} style={{ padding:"7px 14px", borderRadius:8, border:"none", background:COLOR_OC, color:"#FFF", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                        ▶️ Asignar
+                      </button>
+                    )}
+                    {op.estado==="en_ejecucion" && (
+                      <button onClick={()=>setModalCerrarId(op.id)} style={{ padding:"7px 14px", borderRadius:8, border:"none", background:C.azul, color:"#FFF", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                        📷 Cerrar
+                      </button>
+                    )}
+                    <button onClick={async ()=>{
+                      if (!window.confirm(`¿Eliminar el operativo ${op.codigo}?`)) return;
+                      const res = await fetch(`${API_URL}/api/operativos-centrales/${op.id}`,{method:"DELETE"});
+                      const data = await res.json();
+                      if (res.ok) { alert("✅ "+data.mensaje); onRecargar(); }
+                      else alert("❌ "+(data.detail||"Error"));
+                    }} style={{ padding:"7px 14px", borderRadius:8, border:`1px solid ${C.rojo}`, background:"#FFF", color:C.rojo, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                      🗑️ Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      }
+
+      {modalNuevo && <ModalNuevoOperativoCentral onClose={()=>setModalNuevo(false)} onGuardar={()=>{ setModalNuevo(false); onRecargar(); }} />}
+      {modalAsignarId && <ModalAsignarServicio titulo="🏛️ Asignar Operativo Central" color={COLOR_OC} onClose={()=>setModalAsignarId(null)} onConfirmar={handleAsignar} />}
+      {modalCerrarId && <ModalCierre titulo="🏛️ Cerrar Operativo Central" color={COLOR_OC} onClose={()=>setModalCerrarId(null)} onConfirmar={handleCerrar} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // GENERADOR DE REPORTES PDF (abre ventana nueva con HTML imprimible)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2109,6 +2437,7 @@ export default function App() {
   const [desmalezados, setDesmalezados] = useState([]);
   const [caminos, setCaminos] = useState([]);
   const [operativos, setOperativos] = useState([]);
+  const [operativosCentrales, setOperativosCentrales] = useState([]);
   const [kpis, setKpis] = useState({});
   const [loading, setLoading] = useState(true);
   const [modalActivo, setModalActivo] = useState(null);
@@ -2118,18 +2447,20 @@ export default function App() {
 
   const cargarDatos = useCallback(async () => {
     try {
-      const [rSol, rDes, rCam, rOpe, rKpi] = await Promise.all([
+      const [rSol, rDes, rCam, rOpe, rKpi, rOC] = await Promise.all([
         fetch(`${API_URL}/api/solicitudes`),
         fetch(`${API_URL}/api/desmalezados`),
         fetch(`${API_URL}/api/caminos`),
         fetch(`${API_URL}/api/operativos-conjuntos`),
         fetch(`${API_URL}/api/dashboard/kpis`),
+        fetch(`${API_URL}/api/operativos-centrales`),
       ]);
       if (rSol.ok) { const d=await rSol.json(); setSolicitudes(d.solicitudes||[]); }
       if (rDes.ok) { const d=await rDes.json(); setDesmalezados(d.desmalezados||[]); }
       if (rCam.ok) { const d=await rCam.json(); setCaminos(d.caminos||[]); }
       if (rOpe.ok) { const d=await rOpe.json(); setOperativos(d.operativos||[]); }
       if (rKpi.ok) { const d=await rKpi.json(); setKpis(d); }
+      if (rOC.ok)  { const d=await rOC.json();  setOperativosCentrales(d.operativos_centrales||[]); }
     } catch(err) { console.error("Error:", err); }
     setLoading(false);
   }, []);
@@ -2162,6 +2493,7 @@ export default function App() {
       case "desmalezados": return <ViewDesmalezados desmalezados={desmalezados} onNuevo={()=>setModalActivo("desmalezado")} loading={loading} onRecargar={cargarDatos} />;
       case "caminos":      return <ViewCaminos caminos={caminos} onNuevo={()=>setModalActivo("camino")} loading={loading} onRecargar={cargarDatos} />;
       case "operativos":   return <ViewOperativos operativos={operativos} solicitudes={solicitudes} desmalezados={desmalezados} loading={loading} onRecargar={cargarDatos} />;
+      case "op_central":   return <ViewOperativoCentral operativos={operativosCentrales} loading={loading} onRecargar={cargarDatos} />;
       case "mapa":         return <ViewMapa solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} />;
       case "alertas":      return <ViewAlertas solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} />;
       case "reportes":     return <ViewReportes solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} />;
