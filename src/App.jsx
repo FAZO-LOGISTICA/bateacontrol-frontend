@@ -228,12 +228,76 @@ function BotonesModal({ onClose, onGuardar, guardando, subiendo }) {
   );
 }
 
-function ModalBatea({ onClose, onGuardar }) {
-  const [form, setForm] = useState({ nombre:"", rut:"", direccion:"", telefono:"", latitud:"", longitud:"", observaciones:"" });
+// ── MODAL AGREGAR OTRO SERVICIO PARA EL MISMO VECINO ─────────────────────────
+function ModalOtroServicio({ vecino, onClose, onAgregarDesmalezado, onAgregarCamino }) {
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3500, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:460, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding:"18px 24px", background:"#1565C0", borderRadius:"16px 16px 0 0" }}>
+          <h2 style={{ margin:0, color:"#FFF", fontSize:16, fontWeight:700 }}>✅ Solicitud registrada</h2>
+          <p style={{ margin:"4px 0 0", color:"#90CAF9", fontSize:13 }}>¿Este vecino necesita otro servicio además de la batea?</p>
+        </div>
+        <div style={{ padding:22 }}>
+          <div style={{ background:"#E3F2FD", borderRadius:10, padding:"12px 16px", marginBottom:16, fontSize:13, color:"#1565C0" }}>
+            <strong>{vecino.nombre_vecino}</strong>
+            {vecino.rut && vecino.rut !== "SIN-RUT" && ` — ${vecino.rut}`}
+            {vecino.direccion && vecino.direccion !== "Sin dirección" && ` — ${vecino.direccion}`}
+          </div>
+          <p style={{ fontSize:13, color:"#555", marginBottom:16 }}>
+            Si este vecino también necesita desmalezado o arreglo de camino, el sistema pre-llenará sus datos y detectará automáticamente si se puede crear un <strong>Operativo Conjunto</strong>.
+          </p>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <button onClick={onAgregarDesmalezado} style={{
+              padding:"12px 18px", borderRadius:10, border:"none",
+              background:C.verde, color:"#FFF", fontSize:14, fontWeight:600, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:10
+            }}>
+              <span style={{ fontSize:20 }}>🌿</span>
+              <div style={{ textAlign:"left" }}>
+                <div>Agregar Desmalezado</div>
+                <div style={{ fontSize:11, opacity:.85 }}>Pre-llenará datos del vecino automáticamente</div>
+              </div>
+            </button>
+            <button onClick={onAgregarCamino} style={{
+              padding:"12px 18px", borderRadius:10, border:"none",
+              background:C.naranja, color:"#FFF", fontSize:14, fontWeight:600, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:10
+            }}>
+              <span style={{ fontSize:20 }}>🛤️</span>
+              <div style={{ textAlign:"left" }}>
+                <div>Agregar Arreglo de Camino</div>
+                <div style={{ fontSize:11, opacity:.85 }}>Pre-llenará datos del vecino automáticamente</div>
+              </div>
+            </button>
+            <button onClick={onClose} style={{
+              padding:"10px 18px", borderRadius:10, border:"1px solid #DDD",
+              background:"#FFF", color:"#555", fontSize:13, cursor:"pointer"
+            }}>
+              No, solo la batea — Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
+  const [form, setForm] = useState({
+    nombre: vecinoPrelleno?.nombre_vecino || "",
+    rut: vecinoPrelleno?.rut && vecinoPrelleno.rut !== "SIN-RUT" ? vecinoPrelleno.rut : "",
+    direccion: vecinoPrelleno?.direccion && vecinoPrelleno.direccion !== "Sin dirección" ? vecinoPrelleno.direccion : "",
+    telefono: vecinoPrelleno?.telefono || "",
+    latitud: vecinoPrelleno?.latitud || "",
+    longitud: vecinoPrelleno?.longitud || "",
+    observaciones: ""
+  });
   const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
   const [alertaHistorial, setAlertaHistorial] = useState(null);
+  const [alertaDuplicado, setAlertaDuplicado] = useState(null);
+  const [vecinoGuardado, setVecinoGuardado] = useState(null);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const verificarRUT = async (rut) => {
@@ -262,10 +326,26 @@ function ModalBatea({ onClose, onGuardar }) {
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
-      onGuardar(data);
+      // Mostrar advertencia si ya tenía batea pendiente (ya no bloquea, solo avisa)
+      if (data.alerta_duplicado) setAlertaDuplicado(data.alerta_duplicado);
+      // Guardar vecino para ofrecer otro servicio
+      setVecinoGuardado(data);
+      onGuardar(data); // actualiza la lista
     } catch { alert("❌ Error de conexión"); }
     setGuardando(false);
   };
+
+  // Si ya guardó, mostrar modal "¿otro servicio?"
+  if (vecinoGuardado) {
+    return (
+      <ModalOtroServicio
+        vecino={vecinoGuardado}
+        onClose={onClose}
+        onAgregarDesmalezado={() => { onClose(); onGuardar({ _abrirDesmalezado: vecinoGuardado }); }}
+        onAgregarCamino={() => { onClose(); onGuardar({ _abrirCamino: vecinoGuardado }); }}
+      />
+    );
+  }
 
   return (
     <Modal titulo="🗑️ Nueva Solicitud de Batea" color={C.azul} onClose={onClose}>
@@ -276,6 +356,12 @@ function ModalBatea({ onClose, onGuardar }) {
             <div style={{ fontWeight:700, color:"#E65100", fontSize:13 }}>Vecino con historial de batea</div>
             <div style={{ fontSize:12, color:"#555", marginTop:2 }}>{alertaHistorial.alerta}</div>
           </div>
+        </div>
+      )}
+      {alertaDuplicado && (
+        <div style={{ background:"#FFF3E0", border:"1px solid #FFB300", borderRadius:10, padding:"12px 16px", display:"flex", gap:10 }}>
+          <span style={{ fontSize:20 }}>⚠️</span>
+          <div style={{ fontSize:13, color:"#E65100" }}>{alertaDuplicado} — Se guardó igual, puede tener múltiples servicios.</div>
         </div>
       )}
 
@@ -327,8 +413,17 @@ function ModalBatea({ onClose, onGuardar }) {
   );
 }
 
-function ModalDesmalezado({ onClose, onGuardar }) {
-  const [form, setForm] = useState({ nombre:"", rut:"", telefono:"", es_recordatorio:false, direccion:"", descripcion:"", observaciones:"", latitud:"", longitud:"" });
+function ModalDesmalezado({ onClose, onGuardar, vecinoPrelleno }) {
+  const [form, setForm] = useState({
+    nombre: vecinoPrelleno?.nombre_vecino || "",
+    rut: vecinoPrelleno?.rut && vecinoPrelleno.rut !== "SIN-RUT" ? vecinoPrelleno.rut : "",
+    telefono: vecinoPrelleno?.telefono || "",
+    es_recordatorio: false,
+    direccion: vecinoPrelleno?.direccion && vecinoPrelleno.direccion !== "Sin dirección" ? vecinoPrelleno.direccion : "",
+    descripcion: "", observaciones: "",
+    latitud: vecinoPrelleno?.latitud || "",
+    longitud: vecinoPrelleno?.longitud || ""
+  });
   const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
@@ -366,6 +461,14 @@ function ModalDesmalezado({ onClose, onGuardar }) {
 
   return (
     <Modal titulo="🌿 Nuevo Desmalezado" color={C.verde} onClose={onClose}>
+      {vecinoPrelleno && (
+        <div style={{ background:"#E8F5E9", border:"1px solid #A5D6A7", borderRadius:10, padding:"10px 14px", display:"flex", gap:8, alignItems:"center" }}>
+          <span style={{ fontSize:18 }}>✅</span>
+          <div style={{ fontSize:13, color:C.verde }}>
+            <strong>Datos prellenados</strong> desde la solicitud de batea de <strong>{vecinoPrelleno.nombre_vecino}</strong> — revisa y ajusta si es necesario.
+          </div>
+        </div>
+      )}
       <div style={{ background:"#E8F5E9", border:"1px solid #A5D6A7", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.verde }}>
         💡 Solo la <strong>dirección</strong> es obligatoria. Las coordenadas y fotos las puedes agregar después con <strong>✏️ Editar</strong>.
       </div>
@@ -419,8 +522,18 @@ function ModalDesmalezado({ onClose, onGuardar }) {
   );
 }
 
-function ModalCamino({ onClose, onGuardar }) {
-  const [form, setForm] = useState({ nombre:"", rut:"", telefono:"", es_recordatorio:false, direccion:"", tipo_camino:"camino", descripcion_problema:"", observaciones:"", prioridad:"normal", latitud:"", longitud:"" });
+function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
+  const [form, setForm] = useState({
+    nombre: vecinoPrelleno?.nombre_vecino || "",
+    rut: vecinoPrelleno?.rut && vecinoPrelleno.rut !== "SIN-RUT" ? vecinoPrelleno.rut : "",
+    telefono: vecinoPrelleno?.telefono || "",
+    es_recordatorio: false,
+    direccion: vecinoPrelleno?.direccion && vecinoPrelleno.direccion !== "Sin dirección" ? vecinoPrelleno.direccion : "",
+    tipo_camino: "camino", descripcion_problema: "", observaciones: "",
+    prioridad: "normal",
+    latitud: vecinoPrelleno?.latitud || "",
+    longitud: vecinoPrelleno?.longitud || ""
+  });
   const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
@@ -451,6 +564,14 @@ function ModalCamino({ onClose, onGuardar }) {
 
   return (
     <Modal titulo="🛤️ Nuevo Arreglo de Camino" color={C.naranja} onClose={onClose}>
+      {vecinoPrelleno && (
+        <div style={{ background:"#FFF3E0", border:"1px solid #FFCC80", borderRadius:10, padding:"10px 14px", display:"flex", gap:8, alignItems:"center" }}>
+          <span style={{ fontSize:18 }}>✅</span>
+          <div style={{ fontSize:13, color:C.naranja }}>
+            <strong>Datos prellenados</strong> desde la solicitud de batea de <strong>{vecinoPrelleno.nombre_vecino}</strong> — revisa y ajusta si es necesario.
+          </div>
+        </div>
+      )}
       <div style={{ background:"#FFF3E0", border:"1px solid #FFCC80", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
         💡 Solo la <strong>dirección</strong> es obligatoria. Completa el resto después con ✏️ Editar.
       </div>
@@ -2724,7 +2845,22 @@ export default function App() {
     setClustering(false);
   }, [cargarDatos]);
 
-  const handleGuardar = async () => { setModalActivo(null); await cargarDatos(); };
+  const [vecinoPrelleno, setVecinoPrelleno] = useState(null);
+
+  const handleGuardar = async (data) => {
+    setModalActivo(null);
+    // Si viene señal para abrir otro servicio con datos prellenados
+    if (data?._abrirDesmalezado) {
+      setVecinoPrelleno(data._abrirDesmalezado);
+      setModalActivo("desmalezado");
+    } else if (data?._abrirCamino) {
+      setVecinoPrelleno(data._abrirCamino);
+      setModalActivo("camino");
+    } else {
+      setVecinoPrelleno(null);
+    }
+    await cargarDatos();
+  };
 
   const renderView = () => {
     switch(activeView) {
@@ -2746,9 +2882,9 @@ export default function App() {
       <style>{`* { box-sizing:border-box; } .leaflet-container { z-index:1; }`}</style>
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
       <main style={{ flex:1, overflow:"auto", display:"flex", flexDirection:"column" }}>{renderView()}</main>
-      {modalActivo==="batea"       && <ModalBatea       onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} />}
-      {modalActivo==="desmalezado" && <ModalDesmalezado onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} />}
-      {modalActivo==="camino"      && <ModalCamino      onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} />}
+      {modalActivo==="batea"       && <ModalBatea       onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
+      {modalActivo==="desmalezado" && <ModalDesmalezado onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
+      {modalActivo==="camino"      && <ModalCamino      onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
       {modalAsignar && <ModalAsignarBatea onClose={()=>setModalAsignar(false)} onConfirmar={handleConfirmarAsignacion} />}
       {resultadoClustering && <ModalClusteringResultado resultado={resultadoClustering} onClose={()=>setResultadoClustering(null)} />}
     </div>
