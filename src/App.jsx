@@ -2784,23 +2784,21 @@ function BotonesAccion({ id, endpoint, estado, color, onAsignar, onEditar, onRec
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"stretch", minWidth:100 }}>
-      {/* Asignar — se muestra siempre que NO sea estado final */}
-      {!estadoFinal && onAsignar && (
+      {/* Asignar — siempre visible */}
+      {onAsignar && (
         <button onClick={onAsignar} style={{...btnBase, background:color, color:"#FFF", border:`1px solid ${color}`}}>
           {labelAsignar}
         </button>
       )}
-      {/* Editar — siempre disponible */}
+      {/* Editar — siempre visible */}
       <button onClick={onEditar} style={{...btnBase, background:"#FFF", color:"#E65100", border:"1px solid #E65100"}}>
         ✏️ Editar
       </button>
-      {/* Realizada — se muestra siempre que NO sea estado final */}
-      {!estadoFinal && (
-        <button onClick={handleRealizada} style={{...btnBase, background:"#FFF", color:C.verde, border:`1px solid ${C.verde}`}}>
-          ✅ Realizada
-        </button>
-      )}
-      {/* Eliminar — siempre disponible */}
+      {/* Realizada — siempre visible */}
+      <button onClick={handleRealizada} style={{...btnBase, background:"#FFF", color:C.verde, border:`1px solid ${C.verde}`}}>
+        ✅ Realizada
+      </button>
+      {/* Eliminar — siempre visible */}
       <button onClick={handleEliminar} style={{...btnBase, background:"#FFF", color:C.rojo, border:`1px solid ${C.rojo}`}}>
         🗑️ Eliminar
       </button>
