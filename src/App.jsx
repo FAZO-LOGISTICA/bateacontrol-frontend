@@ -663,7 +663,126 @@ function ViewDashboard({ solicitudes, kpis, onAsignarBatea, clustering, setActiv
   );
 }
 
-function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering }) {
+// ── DASHBOARD — SOLO VISUALIZACIÓN ───────────────────────────────────────────
+function ViewDashboard({ kpis, stats }) {
+  const s = stats || {};
+  const b = s.bateas || {};
+  const d = s.desmalezados || {};
+  const c = s.caminos || {};
+  const oc = s.op_conjuntos || {};
+  const oce = s.op_centrales || {};
+
+  const StatCard = ({ label, value, icon, color, bg, sub }) => (
+    <div style={{ background:"#FFF", borderRadius:12, padding:"16px 18px", borderLeft:`4px solid ${color}`, border:`1px solid #E8E8E8`, borderLeftWidth:4 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+        <span style={{ fontSize:11, fontWeight:600, color:"#888", textTransform:"uppercase", letterSpacing:.5 }}>{label}</span>
+        <span style={{ fontSize:22, background:bg, borderRadius:8, padding:"3px 7px" }}>{icon}</span>
+      </div>
+      <div style={{ fontSize:34, fontWeight:800, color, lineHeight:1 }}>{value ?? 0}</div>
+      {sub && <div style={{ fontSize:11, color:"#888", marginTop:4 }}>{sub}</div>}
+    </div>
+  );
+
+  const MiniStat = ({ label, value, color }) => (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:"1px solid #F5F5F5" }}>
+      <span style={{ fontSize:13, color:"#555" }}>{label}</span>
+      <span style={{ fontSize:15, fontWeight:700, color }}>{value ?? 0}</span>
+    </div>
+  );
+
+  const SeccionStats = ({ emoji, titulo, color, bg, children }) => (
+    <div style={{ background:"#FFF", borderRadius:12, border:"1px solid #E8E8E8", overflow:"hidden" }}>
+      <div style={{ padding:"11px 18px", background:bg, borderBottom:`2px solid ${color}`, display:"flex", alignItems:"center", gap:8 }}>
+        <span style={{ fontSize:17 }}>{emoji}</span>
+        <span style={{ fontSize:13, fontWeight:700, color }}>{titulo}</span>
+      </div>
+      <div style={{ padding:"8px 18px 14px" }}>{children}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding:28, background:C.fondo, minHeight:"100vh" }}>
+      <div style={{ marginBottom:24 }}>
+        <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>Panel de Control Municipal</h1>
+        <p style={{ margin:"4px 0 0", color:"#666", fontSize:14 }}>
+          {new Date().toLocaleDateString("es-CL",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}
+        </p>
+      </div>
+
+      {/* Tarjetas grandes resumen */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:24 }}>
+        <StatCard label="Total Realizados" value={s.total_realizados} icon="✅" color="#1B5E20" bg="#E8F5E9" sub="Todos los servicios" />
+        <StatCard label="Bateas Asignadas" value={(b.instaladas||0)+(b.completadas||0)+(b.asignadas||0)} icon="🗑️" color={C.azul} bg={C.azulS} sub={`de ${b.total||0} solicitadas`} />
+        <StatCard label="Registros Este Mes" value={(b.este_mes||0)+(d.este_mes||0)+(c.este_mes||0)} icon="📅" color={C.morado} bg={C.moradoS} sub="Bateas+Desm.+Caminos" />
+        <StatCard label="Grupos Territoriales" value={b.grupos} icon="📍" color={C.naranja} bg={C.naranjaS} sub="Clustering territorial" />
+      </div>
+
+      {/* Grid estadísticas por servicio */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
+        <SeccionStats emoji="🗑️" titulo="Bateas Comunitarias" color={C.azul} bg={C.azulS}>
+          <MiniStat label="Total solicitudes" value={b.total} color={C.azul} />
+          <MiniStat label="Pendientes" value={b.pendientes} color="#999" />
+          <MiniStat label="Asignadas" value={b.asignadas} color={C.naranja} />
+          <MiniStat label="Instaladas / Completadas" value={(b.instaladas||0)+(b.completadas||0)} color={C.verde} />
+          <MiniStat label="Registradas este mes" value={b.este_mes} color={C.azul} />
+        </SeccionStats>
+
+        <SeccionStats emoji="🌿" titulo="Desmalezados" color={C.verde} bg={C.verdeS}>
+          <MiniStat label="Total registrados" value={d.total} color={C.verde} />
+          <MiniStat label="Pendientes" value={d.pendientes} color="#999" />
+          <MiniStat label="Asignados" value={d.asignados} color={C.naranja} />
+          <MiniStat label="Completados" value={d.completados} color={C.verde} />
+          <MiniStat label="Registrados este mes" value={d.este_mes} color={C.verde} />
+        </SeccionStats>
+
+        <SeccionStats emoji="🛤️" titulo="Arreglo de Caminos" color={C.naranja} bg={C.naranjaS}>
+          <MiniStat label="Total registrados" value={c.total} color={C.naranja} />
+          <MiniStat label="Pendientes" value={c.pendientes} color="#999" />
+          <MiniStat label="Asignados" value={c.asignados} color={C.azul} />
+          <MiniStat label="Completados" value={c.completados} color={C.verde} />
+          <MiniStat label="Registrados este mes" value={c.este_mes} color={C.naranja} />
+        </SeccionStats>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <SeccionStats emoji="🔧" titulo="Operativos Conjuntos" color={C.morado} bg={C.moradoS}>
+            <MiniStat label="Total creados" value={oc.total} color={C.morado} />
+            <MiniStat label="Planificados" value={oc.planificados} color={C.azul} />
+            <MiniStat label="Completados" value={oc.completados} color={C.verde} />
+            <MiniStat label="Este mes" value={oc.este_mes} color={C.morado} />
+          </SeccionStats>
+          <SeccionStats emoji="🏛️" titulo="Operativos Centrales" color="#1B5E20" bg="#E8F5E9">
+            <MiniStat label="Total registrados" value={oce.total} color="#1B5E20" />
+            <MiniStat label="En ejecución" value={oce.en_ejecucion} color={C.naranja} />
+            <MiniStat label="Completados" value={oce.completados} color={C.verde} />
+            <MiniStat label="Este mes" value={oce.este_mes} color="#1B5E20" />
+          </SeccionStats>
+        </div>
+      </div>
+
+      {/* Resumen ejecutivo */}
+      <div style={{ background:"#FFF", borderRadius:12, border:"1px solid #E8E8E8", padding:"18px 22px" }}>
+        <h3 style={{ margin:"0 0 14px", fontSize:14, fontWeight:700, color:"#333" }}>📊 Resumen Ejecutivo — A la fecha</h3>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10 }}>
+          {[
+            { label:"Bateas asignadas",        value:(b.instaladas||0)+(b.completadas||0)+(b.asignadas||0), icon:"🗑️", color:C.azul },
+            { label:"Desmalezados realizados",  value:d.completados, icon:"🌿", color:C.verde },
+            { label:"Caminos arreglados",       value:c.completados, icon:"🛤️", color:C.naranja },
+            { label:"Op. Conjuntos realizados", value:oc.completados, icon:"🔧", color:C.morado },
+            { label:"Op. Centrales realizados", value:oce.completados, icon:"🏛️", color:"#1B5E20" },
+          ].map(item => (
+            <div key={item.label} style={{ textAlign:"center", padding:"14px 8px", background:C.fondo, borderRadius:10 }}>
+              <div style={{ fontSize:26 }}>{item.icon}</div>
+              <div style={{ fontSize:30, fontWeight:800, color:item.color, margin:"6px 0 4px" }}>{item.value ?? 0}</div>
+              <div style={{ fontSize:11, color:"#666", lineHeight:1.3 }}>{item.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering, onRecargar }) {
   const [filtro, setFiltro] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState(null); // registro seleccionado para editar
@@ -716,20 +835,13 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering 
                 ))}
                 {!(s.fotos_antes?.length) && <span style={{ fontSize:11, color:"#CCC" }}>Sin fotos</span>}
               </div>,
-              <div style={{ display:"flex", gap:4 }}>
-                <button onClick={()=>setEditando(s)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.azul}`, background:"#FFF", color:C.azul, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  ✏️ Editar
-                </button>
-                <button onClick={async ()=>{
-                  if (!window.confirm(`¿Eliminar la solicitud ${s.folio} de ${s.nombre_vecino}?\n\nEsto no se puede deshacer.`)) return;
-                  const res = await fetch(`${API_URL}/api/solicitudes/${s.id}`, { method:"DELETE" });
-                  const data = await res.json();
-                  if (res.ok) { alert("✅ "+data.mensaje); window.location.reload(); }
-                  else alert("❌ "+(data.detail||"Error"));
-                }} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.rojo}`, background:"#FFF", color:C.rojo, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  🗑️
-                </button>
-              </div>
+              <BotonesAccion
+                id={s.id} endpoint="solicitudes" estado={s.estado} color={C.azul}
+                labelAsignar="🗑️ Asignar"
+                onAsignar={handleAsignarBatea}
+                onEditar={()=>setEditando(s)}
+                onRecargar={onRecargar}
+              />
             ]
           }))}
           total={solicitudes.length}
@@ -1123,31 +1235,13 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
                 {d.foto_antes?<a href={d.foto_antes} target="_blank" rel="noreferrer"><img src={d.foto_antes} alt="antes" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
                 {d.foto_despues?<a href={d.foto_despues} target="_blank" rel="noreferrer"><img src={d.foto_despues} alt="dsp" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:`2px solid ${C.verde}` }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
               </div>,
-              <div style={{ display:"flex", gap:5, flexDirection:"column" }}>
-                {d.estado==="pendiente" && (
-                  <button onClick={()=>setModalAsignarId(d.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:C.verde, color:"#FFF", fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
-                    🌿 Asignar
-                  </button>
-                )}
-                {d.estado==="asignado" && (
-                  <button onClick={()=>setModalCerrarId(d.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:C.azul, color:"#FFF", fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
-                    📷 Cerrar
-                  </button>
-                )}
-                {d.estado==="completado" && <span style={{ fontSize:11, color:C.verde, fontWeight:600 }}>✅ Completado</span>}
-                <button onClick={()=>setEditando(d)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.verde}`, background:"#FFF", color:C.verde, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  ✏️ Editar
-                </button>
-                <button onClick={async ()=>{
-                  if (!window.confirm(`¿Eliminar el desmalezado ${d.folio}?\n\nEsto no se puede deshacer.`)) return;
-                  const res = await fetch(`${API_URL}/api/desmalezados/${d.id}`, { method:"DELETE" });
-                  const data = await res.json();
-                  if (res.ok) { alert("✅ "+data.mensaje); onRecargar(); }
-                  else alert("❌ "+(data.detail||"Error"));
-                }} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.rojo}`, background:"#FFF", color:C.rojo, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  🗑️
-                </button>
-              </div>
+              <BotonesAccion
+                id={d.id} endpoint="desmalezados" estado={d.estado} color={C.verde}
+                labelAsignar="🌿 Asignar"
+                onAsignar={()=>setModalAsignarId(d.id)}
+                onEditar={()=>setEditando(d)}
+                onRecargar={onRecargar}
+              />
             ]
           }))}
           total={desmalezados.length}
@@ -1225,31 +1319,13 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
                 {c.foto_antes?<a href={c.foto_antes} target="_blank" rel="noreferrer"><img src={c.foto_antes} alt="antes" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
                 {c.foto_despues?<a href={c.foto_despues} target="_blank" rel="noreferrer"><img src={c.foto_despues} alt="dsp" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:`2px solid ${C.verde}` }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
               </div>,
-              <div style={{ display:"flex", gap:5, flexDirection:"column" }}>
-                {c.estado==="pendiente" && (
-                  <button onClick={()=>setModalAsignarId(c.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:C.naranja, color:"#FFF", fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
-                    🛤️ Asignar
-                  </button>
-                )}
-                {c.estado==="asignado" && (
-                  <button onClick={()=>setModalCerrarId(c.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:C.azul, color:"#FFF", fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
-                    📷 Cerrar
-                  </button>
-                )}
-                {c.estado==="completado" && <span style={{ fontSize:11, color:C.verde, fontWeight:600 }}>✅ Completado</span>}
-                <button onClick={()=>setEditando(c)} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.naranja}`, background:"#FFF", color:C.naranja, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  ✏️ Editar
-                </button>
-                <button onClick={async ()=>{
-                  if (!window.confirm(`¿Eliminar el arreglo de camino ${c.folio}?\n\nEsto no se puede deshacer.`)) return;
-                  const res = await fetch(`${API_URL}/api/caminos/${c.id}`, { method:"DELETE" });
-                  const data = await res.json();
-                  if (res.ok) { alert("✅ "+data.mensaje); onRecargar(); }
-                  else alert("❌ "+(data.detail||"Error"));
-                }} style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${C.rojo}`, background:"#FFF", color:C.rojo, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  🗑️
-                </button>
-              </div>
+              <BotonesAccion
+                id={c.id} endpoint="caminos" estado={c.estado} color={C.naranja}
+                labelAsignar="🛤️ Asignar"
+                onAsignar={()=>setModalAsignarId(c.id)}
+                onEditar={()=>setEditando(c)}
+                onRecargar={onRecargar}
+              />
             ]
           }))}
           total={caminos.length}
@@ -2617,6 +2693,45 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativ
   );
 }
 
+// ── BOTONES DE ACCIÓN AGRUPADOS (Asignar / Editar / Realizada / Eliminar) ─────
+function BotonesAccion({ id, endpoint, estado, color, onAsignar, onEditar, onRecargar, labelAsignar="📋 Asignar" }) {
+
+  const handleRealizada = async () => {
+    if (!window.confirm("¿Marcar este registro como Realizada/Completada?")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/${endpoint}/${id}/realizar`, { method:"PUT" });
+      const data = await res.json();
+      if (res.ok) { alert("✅ "+data.mensaje); onRecargar(); }
+      else alert("❌ "+(data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+
+  const handleEliminar = async () => {
+    if (!window.confirm("¿Eliminar este registro? Esta acción no se puede deshacer.")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/${endpoint}/${id}`, { method:"DELETE" });
+      const data = await res.json();
+      if (res.ok) { alert("✅ "+data.mensaje); onRecargar(); }
+      else alert("❌ "+(data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+
+  const btnBase = { padding:"5px 0", borderRadius:7, fontSize:11, fontWeight:700, cursor:"pointer", width:90, textAlign:"center", border:"1px solid transparent" };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"stretch", minWidth:94 }}>
+      {(estado==="pendiente"||estado==="planificado"||estado==="asignado") && (
+        <button onClick={onAsignar} style={{...btnBase, background:color, color:"#FFF", border:`1px solid ${color}`}}>{labelAsignar}</button>
+      )}
+      <button onClick={onEditar} style={{...btnBase, background:"#FFF", color:color, border:`1px solid ${color}`}}>✏️ Editar</button>
+      {estado!=="completado"&&estado!=="instalada"&&estado!=="retirada" && (
+        <button onClick={handleRealizada} style={{...btnBase, background:"#FFF", color:C.verde, border:`1px solid ${C.verde}`}}>✅ Realizada</button>
+      )}
+      <button onClick={handleEliminar} style={{...btnBase, background:"#FFF", color:C.rojo, border:`1px solid ${C.rojo}`}}>🗑️ Eliminar</button>
+    </div>
+  );
+}
+
 // ── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 export default function App() {
   const [activeView, setActiveView] = useState("dashboard");
@@ -2626,6 +2741,7 @@ export default function App() {
   const [operativos, setOperativos] = useState([]);
   const [operativosCentrales, setOperativosCentrales] = useState([]);
   const [kpis, setKpis] = useState({});
+  const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [modalActivo, setModalActivo] = useState(null);
   const [modalAsignar, setModalAsignar] = useState(false);
@@ -2634,13 +2750,14 @@ export default function App() {
 
   const cargarDatos = useCallback(async () => {
     try {
-      const [rSol, rDes, rCam, rOpe, rKpi, rOC] = await Promise.all([
+      const [rSol, rDes, rCam, rOpe, rKpi, rOC, rSt] = await Promise.all([
         fetch(`${API_URL}/api/solicitudes`),
         fetch(`${API_URL}/api/desmalezados`),
         fetch(`${API_URL}/api/caminos`),
         fetch(`${API_URL}/api/operativos-conjuntos`),
         fetch(`${API_URL}/api/dashboard/kpis`),
         fetch(`${API_URL}/api/operativos-centrales`),
+        fetch(`${API_URL}/api/estadisticas`),
       ]);
       if (rSol.ok) { const d=await rSol.json(); setSolicitudes(d.solicitudes||[]); }
       if (rDes.ok) { const d=await rDes.json(); setDesmalezados(d.desmalezados||[]); }
@@ -2648,6 +2765,7 @@ export default function App() {
       if (rOpe.ok) { const d=await rOpe.json(); setOperativos(d.operativos||[]); }
       if (rKpi.ok) { const d=await rKpi.json(); setKpis(d); }
       if (rOC.ok)  { const d=await rOC.json();  setOperativosCentrales(d.operativos_centrales||[]); }
+      if (rSt.ok)  { const d=await rSt.json();  setStats(d); }
     } catch(err) { console.error("Error:", err); }
     setLoading(false);
   }, []);
@@ -2675,8 +2793,8 @@ export default function App() {
 
   const renderView = () => {
     switch(activeView) {
-      case "dashboard":    return <ViewDashboard solicitudes={solicitudes} kpis={kpis} onAsignarBatea={handleAsignarBatea} clustering={clustering} setActiveView={setActiveView} setModalActivo={setModalActivo} />;
-      case "bateas":       return <ViewBateas solicitudes={solicitudes} onNueva={()=>setModalActivo("batea")} loading={loading} onAsignarBatea={handleAsignarBatea} clustering={clustering} />;
+      case "dashboard":    return <ViewDashboard kpis={kpis} stats={stats} />;
+      case "bateas":       return <ViewBateas solicitudes={solicitudes} onNueva={()=>setModalActivo("batea")} loading={loading} onAsignarBatea={handleAsignarBatea} clustering={clustering} onRecargar={cargarDatos} />;
       case "desmalezados": return <ViewDesmalezados desmalezados={desmalezados} onNuevo={()=>setModalActivo("desmalezado")} loading={loading} onRecargar={cargarDatos} />;
       case "caminos":      return <ViewCaminos caminos={caminos} onNuevo={()=>setModalActivo("camino")} loading={loading} onRecargar={cargarDatos} />;
       case "operativos":   return <ViewOperativos operativos={operativos} solicitudes={solicitudes} desmalezados={desmalezados} loading={loading} onRecargar={cargarDatos} />;
