@@ -2772,18 +2772,38 @@ function BotonesAccion({ id, endpoint, estado, color, onAsignar, onEditar, onRec
     } catch { alert("❌ Error de conexión"); }
   };
 
-  const btnBase = { padding:"5px 0", borderRadius:7, fontSize:11, fontWeight:700, cursor:"pointer", width:90, textAlign:"center", border:"1px solid transparent" };
+  // Estados finales — ya no se puede asignar ni marcar realizada
+  const estadoFinal = ["completado","instalada","retirada","finalizada"].includes(estado);
+
+  const btnBase = {
+    padding:"6px 0", borderRadius:7, fontSize:12, fontWeight:700,
+    cursor:"pointer", width:96, textAlign:"center",
+    border:"1px solid transparent", display:"flex",
+    alignItems:"center", justifyContent:"center", gap:4
+  };
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"stretch", minWidth:94 }}>
-      {(estado==="pendiente"||estado==="planificado"||estado==="asignado") && (
-        <button onClick={onAsignar} style={{...btnBase, background:color, color:"#FFF", border:`1px solid ${color}`}}>{labelAsignar}</button>
+    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"stretch", minWidth:100 }}>
+      {/* Asignar — se muestra siempre que NO sea estado final */}
+      {!estadoFinal && onAsignar && (
+        <button onClick={onAsignar} style={{...btnBase, background:color, color:"#FFF", border:`1px solid ${color}`}}>
+          {labelAsignar}
+        </button>
       )}
-      <button onClick={onEditar} style={{...btnBase, background:"#FFF", color:color, border:`1px solid ${color}`}}>✏️ Editar</button>
-      {estado!=="completado"&&estado!=="instalada"&&estado!=="retirada" && (
-        <button onClick={handleRealizada} style={{...btnBase, background:"#FFF", color:C.verde, border:`1px solid ${C.verde}`}}>✅ Realizada</button>
+      {/* Editar — siempre disponible */}
+      <button onClick={onEditar} style={{...btnBase, background:"#FFF", color:"#E65100", border:"1px solid #E65100"}}>
+        ✏️ Editar
+      </button>
+      {/* Realizada — se muestra siempre que NO sea estado final */}
+      {!estadoFinal && (
+        <button onClick={handleRealizada} style={{...btnBase, background:"#FFF", color:C.verde, border:`1px solid ${C.verde}`}}>
+          ✅ Realizada
+        </button>
       )}
-      <button onClick={handleEliminar} style={{...btnBase, background:"#FFF", color:C.rojo, border:`1px solid ${C.rojo}`}}>🗑️ Eliminar</button>
+      {/* Eliminar — siempre disponible */}
+      <button onClick={handleEliminar} style={{...btnBase, background:"#FFF", color:C.rojo, border:`1px solid ${C.rojo}`}}>
+        🗑️ Eliminar
+      </button>
     </div>
   );
 }
