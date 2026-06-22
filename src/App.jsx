@@ -773,7 +773,7 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
               <BotonesAccion
                 id={s.id} endpoint="solicitudes" estado={s.estado} color={C.azul}
                 labelAsignar="🗑️ Asignar"
-                onAsignar={handleAsignarBatea}
+                onAsignar={onAsignarBatea}
                 onEditar={()=>setEditando(s)}
                 onRecargar={onRecargar}
               />
