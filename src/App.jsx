@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://feeling-bidding-corresponding-comic.trycloudflare.com";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -1742,6 +1742,7 @@ function ModalClusteringResultado({ resultado, onClose }) {
             {resultado.detalle_grupos.map((g,i)=>(
               <div key={i} style={{ padding:"6px 0", borderBottom:"1px solid #E0E0E0", fontSize:12 }}>
                 <span style={{ fontWeight:600, color:C.azul }}>{g.numero_batea}</span> — {g.vecinos} vecino(s): {g.nombres?.join(", ")}
+                {g.incompleto && <span style={{ marginLeft:6, color:"#E65100", fontWeight:600 }}>⚠ sin coordenadas</span>}
               </div>
             ))}
           </div>
@@ -1807,11 +1808,17 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
                   <div style={{ fontSize:12, color:"#666" }}>Grupos a crear</div>
                 </div>
               </div>
+              {preview.sin_coordenadas > 0 && (
+                <div style={{ marginTop:10, background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"8px 12px", fontSize:12, color:"#E65100" }}>
+                  ⚠️ {preview.sin_coordenadas} solicitud(es) sin coordenadas — se asignarán igual, cada una como grupo individual (no se pudieron agrupar por cercanía).
+                </div>
+              )}
               {preview.grupos?.length > 0 && (
                 <div style={{ marginTop:10, maxHeight:90, overflowY:"auto" }}>
                   {preview.grupos.map((g, i) => (
                     <div key={i} style={{ fontSize:12, color:"#555", padding:"3px 0", borderBottom:"1px solid #E3F2FD" }}>
                       Grupo {i+1}: {g.vecinos} vecino(s) — máx {g.dias_max} días pendiente
+                      {g.incompleto && <span style={{ marginLeft:6, color:"#E65100", fontWeight:600 }}>⚠ sin coordenadas</span>}
                     </div>
                   ))}
                 </div>
