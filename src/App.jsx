@@ -60,6 +60,14 @@ function Badge({ estado, alerta, small }) {
   );
 }
 
+function EmergenciaBadge({ small }) {
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#C62828", color:"#FFF", padding:small?"2px 8px":"3px 10px", borderRadius:20, fontSize:small?10:11, fontWeight:700, whiteSpace:"nowrap", animation:"pulse 1.5s infinite" }}>
+      🚨 EMERGENCIA
+    </span>
+  );
+}
+
 function KPICard({ label, value, icon, color, bg, sub }) {
   return (
     <div style={{ background:C.blanco, border:"1px solid #E0E0E0", borderRadius:12, padding:"16px 20px", borderLeft:`4px solid ${color}`, display:"flex", flexDirection:"column", gap:4 }}>
@@ -85,17 +93,31 @@ function Field({ label, required, error, children }) {
 
 const inp = { padding:"10px 14px", borderRadius:8, border:"1px solid #DDD", fontSize:14, outline:"none", background:"#FFF", width:"100%", boxSizing:"border-box" };
 
+function CheckboxEmergencia({ checked, onChange }) {
+  return (
+    <div style={{
+      display:"flex", alignItems:"center", gap:10, padding:"12px 14px",
+      background:checked?"#FFEBEE":"#FAFAFA", border:checked?"2px solid #C62828":"1px solid #DDD",
+      borderRadius:10, cursor:"pointer"
+    }} onClick={()=>onChange(!checked)}>
+      <input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} style={{ width:18, height:18, cursor:"pointer" }} />
+      <div>
+        <div style={{ fontSize:14, fontWeight:700, color:checked?"#C62828":"#333" }}>🚨 Solicitud de Emergencia</div>
+        <div style={{ fontSize:11, color:"#888" }}>Aluvión, temporal u otra emergencia — prioridad inmediata, no espera en la fila normal</div>
+      </div>
+    </div>
+  );
+}
+
 // ── UPLOADER MÚLTIPLES FOTOS (máx 5) ─────────────────────────────────────────
 function MultiFotoUploader({ label, fotos, setFotos, maxFotos=5 }) {
   const [subiendo, setSubiendo] = useState(false);
-
   const handleAgregar = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
     const disponibles = maxFotos - fotos.length;
     const aSubir = files.slice(0, disponibles);
     if (!aSubir.length) return;
-
     setSubiendo(true);
     const nuevasUrls = [];
     for (const file of aSubir) {
@@ -108,18 +130,15 @@ function MultiFotoUploader({ label, fotos, setFotos, maxFotos=5 }) {
     setSubiendo(false);
     e.target.value = ""; // reset input
   };
-
   const handleEliminar = (idx) => {
     setFotos(prev => prev.filter((_, i) => i !== idx));
   };
-
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <label style={{ fontSize:13, fontWeight:600, color:"#333" }}>{label}</label>
         <span style={{ fontSize:11, color:"#888" }}>{fotos.length}/{maxFotos} fotos</span>
       </div>
-
       {/* Grid de fotos subidas */}
       {fotos.length > 0 && (
         <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
@@ -140,7 +159,6 @@ function MultiFotoUploader({ label, fotos, setFotos, maxFotos=5 }) {
           ))}
         </div>
       )}
-
       {/* Botón agregar fotos */}
       {fotos.length < maxFotos && (
         <label style={{
@@ -163,7 +181,6 @@ function MultiFotoUploader({ label, fotos, setFotos, maxFotos=5 }) {
           />
         </label>
       )}
-
       {fotos.length >= maxFotos && (
         <div style={{ fontSize:11, color:C.naranja, textAlign:"center" }}>
           ⚠️ Límite de {maxFotos} fotos alcanzado
@@ -235,7 +252,7 @@ function ModalOtroServicio({ vecino, onClose, onAgregarDesmalezado, onAgregarCam
       <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:460, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
         <div style={{ padding:"18px 24px", background:"#1565C0", borderRadius:"16px 16px 0 0" }}>
           <h2 style={{ margin:0, color:"#FFF", fontSize:16, fontWeight:700 }}>✅ Solicitud registrada</h2>
-          <p style={{ margin:"4px 0 0", color:"#90CAF9", fontSize:13 }}>¿Este vecino necesita otro servicio además de la batea?</p>
+          <p style={{ margin:"4px 0 0", color:"#90CAF9", fontSize:13 }}>¿Este vecino también necesita otro servicio además de la batea?</p>
         </div>
         <div style={{ padding:22 }}>
           <div style={{ background:"#E3F2FD", borderRadius:10, padding:"12px 16px", marginBottom:16, fontSize:13, color:"#1565C0" }}>
@@ -281,7 +298,6 @@ function ModalOtroServicio({ vecino, onClose, onAgregarDesmalezado, onAgregarCam
     </div>
   );
 }
-
 function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
   const [form, setForm] = useState({
     nombre: vecinoPrelleno?.nombre_vecino || "",
@@ -290,7 +306,8 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
     telefono: vecinoPrelleno?.telefono || "",
     latitud: vecinoPrelleno?.latitud || "",
     longitud: vecinoPrelleno?.longitud || "",
-    observaciones: ""
+    observaciones: "",
+    es_emergencia: false
   });
   const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
@@ -299,7 +316,6 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
   const [alertaDuplicado, setAlertaDuplicado] = useState(null);
   const [vecinoGuardado, setVecinoGuardado] = useState(null);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-
   const verificarRUT = async (rut) => {
     if (rut.length < 9) return;
     try {
@@ -307,13 +323,11 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
       if (res.ok) { const d=await res.json(); if(d.alerta) setAlertaHistorial(d); else setAlertaHistorial(null); }
     } catch {}
   };
-
   const validar = () => {
     const e = {};
     if (!form.nombre.trim()) e.nombre="El nombre es obligatorio para identificar la solicitud";
     setErrores(e); return Object.keys(e).length===0;
   };
-
   const handleGuardar = async () => {
     if (!validar()) return;
     setGuardando(true);
@@ -322,7 +336,7 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
       const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
       const res = await fetch(`${API_URL}/api/solicitudes`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_vecino:form.nombre, rut:form.rut||"SIN-RUT", direccion:form.direccion||"Sin dirección", telefono:form.telefono, latitud:lat, longitud:lon, observaciones:form.observaciones, fotos_antes:fotosAntes })
+        body: JSON.stringify({ nombre_vecino:form.nombre, rut:form.rut||"SIN-RUT", direccion:form.direccion||"Sin dirección", telefono:form.telefono, latitud:lat, longitud:lon, observaciones:form.observaciones, fotos_antes:fotosAntes, es_emergencia:form.es_emergencia })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -334,7 +348,6 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
     } catch { alert("❌ Error de conexión"); }
     setGuardando(false);
   };
-
   // Si ya guardó, mostrar modal "¿otro servicio?"
   if (vecinoGuardado) {
     return (
@@ -346,7 +359,6 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
       />
     );
   }
-
   return (
     <Modal titulo="🗑️ Nueva Solicitud de Batea" color={C.azul} onClose={onClose}>
       {alertaHistorial && (
@@ -364,12 +376,11 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
           <div style={{ fontSize:13, color:"#E65100" }}>{alertaDuplicado} — Se guardó igual, puede tener múltiples servicios.</div>
         </div>
       )}
-
       {/* Aviso datos incompletos */}
       <div style={{ background:"#E3F2FD", border:"1px solid #90CAF9", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.azul }}>
         💡 Solo el <strong>nombre</strong> es obligatorio. Puedes guardar ahora y completar RUT, coordenadas y fotos después usando <strong>✏️ Editar</strong>.
       </div>
-
+      <CheckboxEmergencia checked={form.es_emergencia} onChange={v=>set("es_emergencia",v)} />
       <SeccionForm titulo="👤 Datos del Vecino" color={C.azul}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Field label="Nombre completo" required error={errores.nombre}>
@@ -386,7 +397,6 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
           </Field>
         </div>
       </SeccionForm>
-
       <div style={{ background:"#F0F7FF", borderRadius:10, padding:16, border:"1px solid #BBDEFB" }}>
         <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional — puedes agregar después)</span></h3>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
@@ -403,7 +413,6 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
           </div>
         )}
       </div>
-
       <MultiFotoUploader label="📷 Fotos del sector (ANTES) — máx 5, opcional" fotos={fotosAntes} setFotos={setFotosAntes} />
       <Field label="Observaciones">
         <textarea style={{...inp, minHeight:70, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} placeholder="Información adicional..." />
@@ -412,7 +421,6 @@ function ModalBatea({ onClose, onGuardar, vecinoPrelleno }) {
     </Modal>
   );
 }
-
 function ModalDesmalezado({ onClose, onGuardar, vecinoPrelleno }) {
   const [form, setForm] = useState({
     nombre: vecinoPrelleno?.nombre_vecino || "",
@@ -422,19 +430,18 @@ function ModalDesmalezado({ onClose, onGuardar, vecinoPrelleno }) {
     direccion: vecinoPrelleno?.direccion && vecinoPrelleno.direccion !== "Sin dirección" ? vecinoPrelleno.direccion : "",
     descripcion: "", observaciones: "",
     latitud: vecinoPrelleno?.latitud || "",
-    longitud: vecinoPrelleno?.longitud || ""
+    longitud: vecinoPrelleno?.longitud || "",
+    es_emergencia: false
   });
   const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-
   const validar = () => {
     const e = {};
     if (!form.direccion.trim()) e.direccion="Al menos la dirección es necesaria para ubicar el punto";
     setErrores(e); return Object.keys(e).length===0;
   };
-
   const handleGuardar = async () => {
     if (!validar()) return;
     setGuardando(true);
@@ -443,7 +450,7 @@ function ModalDesmalezado({ onClose, onGuardar, vecinoPrelleno }) {
       const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
       const res = await fetch(`${API_URL}/api/desmalezados`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_solicitante:form.nombre, rut:form.rut||"SIN-RUT", telefono:form.telefono, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, observaciones:form.observaciones, latitud:lat, longitud:lon, fotos_antes:fotosAntes })
+        body: JSON.stringify({ nombre_solicitante:form.nombre, rut:form.rut||"SIN-RUT", telefono:form.telefono, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, observaciones:form.observaciones, latitud:lat, longitud:lon, fotos_antes:fotosAntes, es_emergencia:form.es_emergencia })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -458,7 +465,6 @@ function ModalDesmalezado({ onClose, onGuardar, vecinoPrelleno }) {
     } catch { alert("❌ Error de conexión"); }
     setGuardando(false);
   };
-
   return (
     <Modal titulo="🌿 Nuevo Desmalezado" color={C.verde} onClose={onClose}>
       {vecinoPrelleno && (
@@ -472,6 +478,7 @@ function ModalDesmalezado({ onClose, onGuardar, vecinoPrelleno }) {
       <div style={{ background:"#E8F5E9", border:"1px solid #A5D6A7", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.verde }}>
         💡 Solo la <strong>dirección</strong> es obligatoria. Las coordenadas y fotos las puedes agregar después con <strong>✏️ Editar</strong>.
       </div>
+      <CheckboxEmergencia checked={form.es_emergencia} onChange={v=>set("es_emergencia",v)} />
       <SeccionForm titulo="📋 Datos del Registro" color={C.verde}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Field label="Nombre / Referencia">
@@ -521,7 +528,6 @@ function ModalDesmalezado({ onClose, onGuardar, vecinoPrelleno }) {
     </Modal>
   );
 }
-
 function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
   const [form, setForm] = useState({
     nombre: vecinoPrelleno?.nombre_vecino || "",
@@ -532,19 +538,18 @@ function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
     tipo_camino: "camino", descripcion_problema: "", observaciones: "",
     prioridad: "normal",
     latitud: vecinoPrelleno?.latitud || "",
-    longitud: vecinoPrelleno?.longitud || ""
+    longitud: vecinoPrelleno?.longitud || "",
+    es_emergencia: false
   });
   const [fotosAntes, setFotosAntes] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-
   const validar = () => {
     const e = {};
     if (!form.direccion.trim()) e.direccion="Al menos la dirección es necesaria";
     setErrores(e); return Object.keys(e).length===0;
   };
-
   const handleGuardar = async () => {
     if (!validar()) return;
     setGuardando(true);
@@ -553,7 +558,7 @@ function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
       const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
       const res = await fetch(`${API_URL}/api/caminos`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ nombre_solicitante:form.nombre, rut:form.rut||"SIN-RUT", telefono:form.telefono, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, observaciones:form.observaciones, prioridad:form.prioridad, latitud:lat, longitud:lon, fotos_antes:fotosAntes })
+        body: JSON.stringify({ nombre_solicitante:form.nombre, rut:form.rut||"SIN-RUT", telefono:form.telefono, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, observaciones:form.observaciones, prioridad:form.es_emergencia?"urgente":form.prioridad, latitud:lat, longitud:lon, fotos_antes:fotosAntes, es_emergencia:form.es_emergencia })
       });
       const data = await res.json();
       if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
@@ -561,7 +566,6 @@ function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
     } catch { alert("❌ Error de conexión"); }
     setGuardando(false);
   };
-
   return (
     <Modal titulo="🛤️ Nuevo Arreglo de Camino" color={C.naranja} onClose={onClose}>
       {vecinoPrelleno && (
@@ -575,6 +579,7 @@ function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
       <div style={{ background:"#FFF3E0", border:"1px solid #FFCC80", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
         💡 Solo la <strong>dirección</strong> es obligatoria. Completa el resto después con ✏️ Editar.
       </div>
+      <CheckboxEmergencia checked={form.es_emergencia} onChange={v=>set("es_emergencia",v)} />
       <SeccionForm titulo="📋 Datos del Registro" color={C.naranja}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Field label="Nombre / Referencia">
@@ -605,7 +610,7 @@ function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
             </select>
           </Field>
           <Field label="Prioridad">
-            <select style={inp} value={form.prioridad} onChange={e=>set("prioridad",e.target.value)}>
+            <select style={inp} value={form.prioridad} onChange={e=>set("prioridad",e.target.value)} disabled={form.es_emergencia}>
               <option value="normal">Normal</option>
               <option value="alta">Alta</option>
               <option value="urgente">Urgente</option>
@@ -640,7 +645,6 @@ function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
     </Modal>
   );
 }
-
 function Sidebar({ activeView, setActiveView }) {
   const items = [
     { id:"dashboard",    icon:"📊", label:"Dashboard"        },
@@ -691,7 +695,6 @@ function Sidebar({ activeView, setActiveView }) {
     </div>
   );
 }
-
 function TablaGenerica({ columnas, filas, total }) {
   return (
     <div style={{ background:C.blanco, borderRadius:12, border:"1px solid #E0E0E0", overflow:"hidden" }}>
@@ -717,8 +720,6 @@ function TablaGenerica({ columnas, filas, total }) {
     </div>
   );
 }
-
-
 // ── DASHBOARD — SOLO VISUALIZACIÓN ───────────────────────────────────────────
 function ViewDashboard({ kpis, stats }) {
   const s = stats || {};
@@ -727,7 +728,7 @@ function ViewDashboard({ kpis, stats }) {
   const c = s.caminos || {};
   const oc = s.op_conjuntos || {};
   const oce = s.op_centrales || {};
-
+  const totalEmergencias = s.total_emergencias || 0;
   const StatCard = ({ label, value, icon, color, bg, sub }) => (
     <div style={{ background:"#FFF", borderRadius:12, padding:"16px 18px", borderLeft:`4px solid ${color}`, border:`1px solid #E8E8E8`, borderLeftWidth:4 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
@@ -738,14 +739,12 @@ function ViewDashboard({ kpis, stats }) {
       {sub && <div style={{ fontSize:11, color:"#888", marginTop:4 }}>{sub}</div>}
     </div>
   );
-
   const MiniStat = ({ label, value, color }) => (
     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:"1px solid #F5F5F5" }}>
       <span style={{ fontSize:13, color:"#555" }}>{label}</span>
       <span style={{ fontSize:15, fontWeight:700, color }}>{value ?? 0}</span>
     </div>
   );
-
   const SeccionStats = ({ emoji, titulo, color, bg, children }) => (
     <div style={{ background:"#FFF", borderRadius:12, border:"1px solid #E8E8E8", overflow:"hidden" }}>
       <div style={{ padding:"11px 18px", background:bg, borderBottom:`2px solid ${color}`, display:"flex", alignItems:"center", gap:8 }}>
@@ -755,7 +754,6 @@ function ViewDashboard({ kpis, stats }) {
       <div style={{ padding:"8px 18px 14px" }}>{children}</div>
     </div>
   );
-
   return (
     <div style={{ padding:28, background:C.fondo, minHeight:"100vh" }}>
       <div style={{ marginBottom:24 }}>
@@ -764,15 +762,22 @@ function ViewDashboard({ kpis, stats }) {
           {new Date().toLocaleDateString("es-CL",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}
         </p>
       </div>
-
+      {totalEmergencias > 0 && (
+        <div style={{ background:"#C62828", color:"#FFF", borderRadius:12, padding:"14px 20px", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
+          <span style={{ fontSize:28 }}>🚨</span>
+          <div>
+            <div style={{ fontWeight:800, fontSize:16 }}>{totalEmergencias} solicitud(es) de EMERGENCIA pendiente(s)</div>
+            <div style={{ fontSize:12, opacity:.9 }}>Requieren atención inmediata — revisa Bateas, Desmalezados y Arreglo de Caminos.</div>
+          </div>
+        </div>
+      )}
       {/* Tarjetas grandes resumen */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:24 }}>
         <StatCard label="Total Realizados" value={s.total_realizados} icon="✅" color="#1B5E20" bg="#E8F5E9" sub="Todos los servicios" />
         <StatCard label="Bateas Asignadas" value={(b.instaladas||0)+(b.completadas||0)+(b.asignadas||0)} icon="🗑️" color={C.azul} bg={C.azulS} sub={`de ${b.total||0} solicitadas`} />
         <StatCard label="Registros Este Mes" value={(b.este_mes||0)+(d.este_mes||0)+(c.este_mes||0)} icon="📅" color={C.morado} bg={C.moradoS} sub="Bateas+Desm.+Caminos" />
-        <StatCard label="Grupos Territoriales" value={b.grupos} icon="📍" color={C.naranja} bg={C.naranjaS} sub="Clustering territorial" />
+        <StatCard label="Emergencias Activas" value={totalEmergencias} icon="🚨" color={C.rojo} bg={C.rojoS} sub="Prioridad inmediata" />
       </div>
-
       {/* Grid estadísticas por servicio */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
         <SeccionStats emoji="🗑️" titulo="Bateas Comunitarias" color={C.azul} bg={C.azulS}>
@@ -781,24 +786,24 @@ function ViewDashboard({ kpis, stats }) {
           <MiniStat label="Asignadas" value={b.asignadas} color={C.naranja} />
           <MiniStat label="Instaladas / Completadas" value={(b.instaladas||0)+(b.completadas||0)} color={C.verde} />
           <MiniStat label="Registradas este mes" value={b.este_mes} color={C.azul} />
+          <MiniStat label="🚨 Emergencias" value={b.emergencias} color={C.rojo} />
         </SeccionStats>
-
         <SeccionStats emoji="🌿" titulo="Desmalezados" color={C.verde} bg={C.verdeS}>
           <MiniStat label="Total registrados" value={d.total} color={C.verde} />
           <MiniStat label="Pendientes" value={d.pendientes} color="#999" />
           <MiniStat label="Asignados" value={d.asignados} color={C.naranja} />
           <MiniStat label="Completados" value={d.completados} color={C.verde} />
           <MiniStat label="Registrados este mes" value={d.este_mes} color={C.verde} />
+          <MiniStat label="🚨 Emergencias" value={d.emergencias} color={C.rojo} />
         </SeccionStats>
-
         <SeccionStats emoji="🛤️" titulo="Arreglo de Caminos" color={C.naranja} bg={C.naranjaS}>
           <MiniStat label="Total registrados" value={c.total} color={C.naranja} />
           <MiniStat label="Pendientes" value={c.pendientes} color="#999" />
           <MiniStat label="Asignados" value={c.asignados} color={C.azul} />
           <MiniStat label="Completados" value={c.completados} color={C.verde} />
           <MiniStat label="Registrados este mes" value={c.este_mes} color={C.naranja} />
+          <MiniStat label="🚨 Emergencias" value={c.emergencias} color={C.rojo} />
         </SeccionStats>
-
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
           <SeccionStats emoji="🔧" titulo="Operativos Conjuntos" color={C.morado} bg={C.moradoS}>
             <MiniStat label="Total creados" value={oc.total} color={C.morado} />
@@ -811,10 +816,10 @@ function ViewDashboard({ kpis, stats }) {
             <MiniStat label="En ejecución" value={oce.en_ejecucion} color={C.naranja} />
             <MiniStat label="Completados" value={oce.completados} color={C.verde} />
             <MiniStat label="Este mes" value={oce.este_mes} color="#1B5E20" />
+            <MiniStat label="🚨 Emergencias" value={oce.emergencias} color={C.rojo} />
           </SeccionStats>
         </div>
       </div>
-
       {/* Resumen ejecutivo */}
       <div style={{ background:"#FFF", borderRadius:12, border:"1px solid #E8E8E8", padding:"18px 22px" }}>
         <h3 style={{ margin:"0 0 14px", fontSize:14, fontWeight:700, color:"#333" }}>📊 Resumen Ejecutivo — A la fecha</h3>
@@ -837,18 +842,15 @@ function ViewDashboard({ kpis, stats }) {
     </div>
   );
 }
-
 function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering, onRecargar }) {
   const [filtro, setFiltro] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState(null); // registro seleccionado para editar
-
   const filtradas = solicitudes.filter(s => {
     const mE = filtro==="todos"||s.estado===filtro;
     const mB = busqueda===""||[s.nombre_vecino,s.direccion,s.folio,s.rut].some(v=>(v||"").toLowerCase().includes(busqueda.toLowerCase()));
     return mE&&mB;
   });
-
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
@@ -871,10 +873,11 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
         <TablaGenerica
           columnas={["Folio","Vecino","Dirección","Coords","Estado","Alerta","Días","Fotos","Acción"]}
           filas={filtradas.map((s,i) => ({
-            key:s.id, critica:s.nivel_alerta==="critica", par:i%2===0,
+            key:s.id, critica:s.nivel_alerta==="critica"||s.es_emergencia, par:i%2===0,
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.azul, fontWeight:600, fontSize:12 }}>{s.folio}</span>,
               <span>{s.nombre_vecino}
+                {s.es_emergencia&&<span style={{ marginLeft:6 }}><EmergenciaBadge small /></span>}
                 {s.tuvo_batea_antes&&<span style={{ marginLeft:6, fontSize:10, background:"#FFF3E0", color:"#E65100", padding:"1px 6px", borderRadius:10 }}>⚠ historial</span>}
                 {(!s.latitud || s.rut==="SIN-RUT" || s.direccion==="Sin dirección") && <span style={{ marginLeft:6, fontSize:10, background:"#FFF3E0", color:"#E65100", padding:"1px 6px", borderRadius:10 }}>⚠ incompleto</span>}
               </span>,
@@ -911,30 +914,25 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
     </div>
   );
 }
-
-
 // ── MODAL EDITAR REGISTRO (universal para bateas, desmalezados y caminos) ─────
 function ModalEditar({ tipo, registro, onClose, onGuardar }) {
   const [form, setForm] = useState({ ...registro });
   const [fotosAntes, setFotosAntes] = useState(registro.fotos_antes || []);
   const [guardando, setGuardando] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-
   const endpointMap = { batea:"solicitudes", desmalezado:"desmalezados", camino:"caminos" };
   const colorMap = { batea:C.azul, desmalezado:C.verde, camino:C.naranja };
   const tituloMap = { batea:"✏️ Editar Solicitud de Batea", desmalezado:"✏️ Editar Desmalezado", camino:"✏️ Editar Arreglo de Camino" };
   const color = colorMap[tipo] || C.azul;
-
   const handleGuardar = async () => {
     setGuardando(true);
     try {
       const endpoint = endpointMap[tipo];
       const body = tipo === "batea"
-        ? { nombre_vecino:form.nombre_vecino, rut:form.rut, direccion:form.direccion, telefono:form.telefono, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, observaciones:form.observaciones, fotos_antes:fotosAntes }
+        ? { nombre_vecino:form.nombre_vecino, rut:form.rut, direccion:form.direccion, telefono:form.telefono, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, observaciones:form.observaciones, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
         : tipo === "desmalezado"
-        ? { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes }
-        : { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.prioridad, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes };
-
+        ? { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
+        : { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.es_emergencia?"urgente":form.prioridad, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia };
       const res = await fetch(`${API_URL}/api/${endpoint}/${registro.id}/editar`, {
         method:"PUT", headers:{"Content-Type":"application/json"},
         body: JSON.stringify(body)
@@ -945,7 +943,6 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
     } catch { alert("❌ Error de conexión"); }
     setGuardando(false);
   };
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:620, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
@@ -956,9 +953,8 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
           </div>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
         </div>
-
         <div style={{ padding:22, display:"flex", flexDirection:"column", gap:14 }}>
-
+          <CheckboxEmergencia checked={!!form.es_emergencia} onChange={v=>set("es_emergencia",v)} />
           {/* Campos específicos por tipo */}
           {tipo === "batea" && (
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
@@ -987,7 +983,6 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
               </div>
             </div>
           )}
-
           {tipo === "desmalezado" && (
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Field label="Nombre / Referencia">
@@ -1013,14 +1008,13 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
               </Field>
             </div>
           )}
-
           {tipo === "camino" && (
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Field label="Nombre / Referencia">
                 <input style={inp} value={form.nombre_solicitante||""} onChange={e=>set("nombre_solicitante",e.target.value)} />
               </Field>
               <Field label="Prioridad">
-                <select style={inp} value={form.prioridad||"normal"} onChange={e=>set("prioridad",e.target.value)}>
+                <select style={inp} value={form.prioridad||"normal"} onChange={e=>set("prioridad",e.target.value)} disabled={!!form.es_emergencia}>
                   <option value="normal">Normal</option>
                   <option value="alta">Alta</option>
                   <option value="urgente">Urgente</option>
@@ -1055,18 +1049,15 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
               </Field>
             </div>
           )}
-
           {/* Fotos ANTES — editables y se pueden agregar después */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:14, border:"1px solid #E3F2FD" }}>
             <div style={{ fontSize:13, fontWeight:700, color:color, marginBottom:10 }}>📷 Fotos ANTES — puedes agregar o eliminar</div>
             <MultiFotoUploader label="" fotos={fotosAntes} setFotos={setFotosAntes} />
           </div>
-
           {/* Info */}
           <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
             ⚠️ Solo se actualizarán los campos que modifiques. El estado, folio y fecha de solicitud no cambian.
           </div>
-
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
             <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
             <button onClick={handleGuardar} disabled={guardando} style={{
@@ -1081,7 +1072,6 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
     </div>
   );
 }
-
 // ── MODAL ASIGNAR DESMALEZADO / CAMINO ───────────────────────────────────────
 function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
   const hoy = new Date().toISOString().split("T")[0];
@@ -1089,13 +1079,11 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
   const [diasUso, setDiasUso] = useState(3);
   const [responsable, setResponsable] = useState("");
   const opciones = [1, 2, 3, 5, 7, 10, 14, 21, 30];
-
   const calcFechaTermino = () => {
     const d = new Date(fechaInicio);
     d.setDate(d.getDate() + diasUso);
     return d.toLocaleDateString("es-CL");
   };
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:500, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
@@ -1107,7 +1095,6 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
         </div>
         <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
-
           {/* Responsable */}
           <div>
             <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>👷 Responsable / Cuadrilla</label>
@@ -1115,7 +1102,6 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
               placeholder="Nombre del responsable o cuadrilla asignada"
               style={{ ...{padding:"10px 14px", borderRadius:8, border:`2px solid ${color}`, fontSize:14, outline:"none", background:"#FFF", width:"100%", boxSizing:"border-box"} }} />
           </div>
-
           {/* Fecha inicio */}
           <div>
             <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>📅 Fecha de inicio</label>
@@ -1128,7 +1114,6 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
               </span>
             </div>
           </div>
-
           {/* Días */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
             <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:10 }}>⏱ Días de ejecución</label>
@@ -1149,7 +1134,6 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
               <span style={{ fontSize:13, color:"#555" }}>días</span>
             </div>
           </div>
-
           {/* Resumen */}
           <div style={{ background:"#F0FFF4", border:"1px solid #C8E6C9", borderRadius:10, padding:"12px 16px" }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, textAlign:"center" }}>
@@ -1167,7 +1151,6 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
               </div>
             </div>
           </div>
-
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
             <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
             <button onClick={()=>onConfirmar(fechaInicio, diasUso, responsable)} style={{
@@ -1180,19 +1163,16 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
     </div>
   );
 }
-
 // ── MODAL CIERRE CON FOTO DESPUÉS ────────────────────────────────────────────
 function ModalCierre({ titulo, color, onClose, onConfirmar }) {
   const [fotosDespues, setFotosDespues] = useState([]);
   const [observaciones, setObservaciones] = useState("");
   const [guardando, setGuardando] = useState(false);
-
   const handleConfirmar = async () => {
     setGuardando(true);
     await onConfirmar(fotosDespues, observaciones);
     setGuardando(false);
   };
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:500, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
@@ -1204,24 +1184,20 @@ function ModalCierre({ titulo, color, onClose, onConfirmar }) {
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
         </div>
         <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
-
           <MultiFotoUploader
             label="📷 Fotos DESPUÉS del trabajo — máx 5"
             fotos={fotosDespues}
             setFotos={setFotosDespues}
           />
-
           <div>
             <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>📝 Observaciones del cierre</label>
             <textarea value={observaciones} onChange={e=>setObservaciones(e.target.value)}
               placeholder="Descripción del trabajo realizado, materiales usados, novedades..."
               style={{ padding:"10px 14px", borderRadius:8, border:"1px solid #DDD", fontSize:13, outline:"none", background:"#FFF", width:"100%", boxSizing:"border-box", minHeight:80, resize:"vertical" }} />
           </div>
-
           <div style={{ background:"#E8F5E9", border:"1px solid #C8E6C9", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.verde }}>
             ✅ Al cerrar, el estado cambiará a <strong>"completado"</strong> y las fotos quedarán guardadas para el informe final con ANTES y DESPUÉS.
           </div>
-
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
             <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
             <button onClick={handleConfirmar} disabled={guardando} style={{
@@ -1237,12 +1213,10 @@ function ModalCierre({ titulo, color, onClose, onConfirmar }) {
     </div>
   );
 }
-
 function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [modalCerrarId, setModalCerrarId] = useState(null);
   const [editando, setEditando] = useState(null);
-
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
       const res = await fetch(`${API_URL}/api/desmalezados/${modalAsignarId}/asignar`, {
@@ -1254,7 +1228,6 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
       else alert("❌ " + (data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
-
   const handleCerrar = async (fotos_despues, observaciones) => {
     try {
       const res = await fetch(`${API_URL}/api/desmalezados/${modalCerrarId}/cerrar`, {
@@ -1266,7 +1239,6 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
       else alert("❌ " + (data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
-
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
@@ -1277,10 +1249,13 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
         <TablaGenerica
           columnas={["Folio","Solicitante","Dirección","Estado","Inicio","Término","Días","Responsable","Fotos","Acción"]}
           filas={desmalezados.map((d,i) => ({
-            key:d.id, critica:false, par:i%2===0,
+            key:d.id, critica:!!d.es_emergencia, par:i%2===0,
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.verde, fontWeight:600, fontSize:12 }}>{d.folio}</span>,
-              <span style={{ fontSize:12 }}>{d.nombre_solicitante}{d.es_recordatorio&&<span style={{ marginLeft:4, fontSize:10, background:"#E8F5E9", color:C.verde, padding:"1px 5px", borderRadius:8 }}>📝</span>}</span>,
+              <span style={{ fontSize:12 }}>{d.nombre_solicitante}
+                {d.es_emergencia&&<span style={{ marginLeft:6 }}><EmergenciaBadge small /></span>}
+                {d.es_recordatorio&&<span style={{ marginLeft:4, fontSize:10, background:"#E8F5E9", color:C.verde, padding:"1px 5px", borderRadius:8 }}>📝</span>}
+              </span>,
               <span style={{ fontSize:12, color:"#666" }}>{d.direccion}</span>,
               <Badge estado={d.estado} small />,
               <span style={{ fontSize:12, color:C.azul, fontWeight:600 }}>{d.fecha_inicio||"—"}</span>,
@@ -1319,13 +1294,11 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
     </div>
   );
 }
-
 function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
   const pc = { urgente:C.rojo, alta:C.naranja, normal:C.verde };
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [modalCerrarId, setModalCerrarId] = useState(null);
   const [editando, setEditando] = useState(null);
-
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
       const res = await fetch(`${API_URL}/api/caminos/${modalAsignarId}/asignar`, {
@@ -1337,7 +1310,6 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
       else alert("❌ " + (data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
-
   const handleCerrar = async (fotos_despues, observaciones) => {
     try {
       const res = await fetch(`${API_URL}/api/caminos/${modalCerrarId}/cerrar`, {
@@ -1349,7 +1321,6 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
       else alert("❌ " + (data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
-
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
@@ -1360,10 +1331,13 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
         <TablaGenerica
           columnas={["Folio","Solicitante","Dirección","Tipo","Prioridad","Estado","Inicio","Término","Responsable","Fotos","Acción"]}
           filas={caminos.map((c,i) => ({
-            key:c.id, critica:c.prioridad==="urgente", par:i%2===0,
+            key:c.id, critica:c.prioridad==="urgente"||!!c.es_emergencia, par:i%2===0,
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.naranja, fontWeight:600, fontSize:12 }}>{c.folio}</span>,
-              <span style={{ fontSize:12 }}>{c.nombre_solicitante}{c.es_recordatorio&&<span style={{ marginLeft:4, fontSize:10, background:"#FFF3E0", color:C.naranja, padding:"1px 5px", borderRadius:8 }}>📝</span>}</span>,
+              <span style={{ fontSize:12 }}>{c.nombre_solicitante}
+                {c.es_emergencia&&<span style={{ marginLeft:6 }}><EmergenciaBadge small /></span>}
+                {c.es_recordatorio&&<span style={{ marginLeft:4, fontSize:10, background:"#FFF3E0", color:C.naranja, padding:"1px 5px", borderRadius:8 }}>📝</span>}
+              </span>,
               <span style={{ fontSize:12, color:"#666" }}>{c.direccion}</span>,
               <span style={{ fontSize:12 }}>{c.tipo_camino}</span>,
               <span style={{ fontSize:12, fontWeight:600, color:pc[c.prioridad]||C.verde }}>{c.prioridad}</span>,
@@ -1403,20 +1377,16 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
     </div>
   );
 }
-
 function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onRecargar }) {
   const [paresDetectados, setParesDetectados] = useState([]);
   const [modalPar, setModalPar] = useState(null); // par seleccionado para crear operativo
   const [creando, setCreando] = useState(false);
-
   // Detectar pares batea+desmalezado cercanos (100m) en el frontend
   useEffect(() => {
     const bateasPendientes = solicitudes.filter(s => s.estado === "pendiente" && s.latitud && s.longitud);
     const desmalezadosPendientes = desmalezados.filter(d => d.estado === "pendiente" && d.latitud && d.longitud);
-
     const pares = [];
     const usados = new Set();
-
     for (const b of bateasPendientes) {
       for (const d of desmalezadosPendientes) {
         if (usados.has(b.id) || usados.has(d.id)) continue;
@@ -1430,7 +1400,6 @@ function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onReca
     }
     setParesDetectados(pares);
   }, [solicitudes, desmalezados]);
-
   const calcDistancia = (lat1, lon1, lat2, lon2) => {
     const R = 6371000;
     const phi1 = lat1 * Math.PI/180, phi2 = lat2 * Math.PI/180;
@@ -1439,7 +1408,6 @@ function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onReca
     const a = Math.sin(dphi/2)**2 + Math.cos(phi1)*Math.cos(phi2)*Math.sin(dlambda/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   };
-
   const handleCrearOperativo = async (fechaInicio, diasUso, responsable) => {
     if (!modalPar) return;
     setCreando(true);
@@ -1448,25 +1416,21 @@ function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onReca
       const res = await fetch(`${API_URL}/api/operativos-conjuntos?solicitud_batea_id=${modalPar.batea.id}&desmalezado_id=${modalPar.desmalezado.id}`, { method:"POST" });
       const data = await res.json();
       if (!res.ok) { alert("❌ " + (data.detail||"Error")); setCreando(false); return; }
-
       // Asignar fechas al desmalezado
       await fetch(`${API_URL}/api/desmalezados/${modalPar.desmalezado.id}/asignar`, {
         method:"PUT", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ fecha_inicio:fechaInicio, dias_uso:diasUso, responsable })
       });
-
       alert(`✅ Operativo Conjunto ${data.codigo} creado\n🗑️ Batea: ${data.numero_batea}\n📅 Inicio: ${new Date(fechaInicio).toLocaleDateString("es-CL")}\n⏱ Duración: ${diasUso} días`);
       setModalPar(null);
       onRecargar();
     } catch { alert("❌ Error de conexión"); }
     setCreando(false);
   };
-
   return (
     <div style={{ padding:28 }}>
       <h1 style={{ margin:"0 0 8px", fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🔧 Operativos Conjuntos</h1>
       <p style={{ margin:"0 0 20px", color:"#666", fontSize:14 }}>Batea + Desmalezado en un mismo punto — un solo viaje, dos servicios</p>
-
       {/* Pares detectados automáticamente */}
       {paresDetectados.length > 0 && (
         <div style={{ marginBottom:24 }}>
@@ -1516,7 +1480,6 @@ function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onReca
           </div>
         </div>
       )}
-
       {/* Sin pares detectados */}
       {paresDetectados.length === 0 && !loading && operativos.length === 0 && (
         <div style={{ background:"#F3E5F5", border:"1px solid #CE93D8", borderRadius:12, padding:32, textAlign:"center", marginBottom:24 }}>
@@ -1527,7 +1490,6 @@ function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onReca
           </div>
         </div>
       )}
-
       {/* Operativos ya creados */}
       {operativos.length > 0 && (
         <div>
@@ -1558,7 +1520,6 @@ function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onReca
           </div>
         </div>
       )}
-
       {/* Modal crear operativo con fechas */}
       {modalPar && (
         <ModalAsignarServicio
@@ -1571,7 +1532,6 @@ function ViewOperativos({ operativos, solicitudes, desmalezados, loading, onReca
     </div>
   );
 }
-
 function ViewMapa({ solicitudes, desmalezados, caminos, operativos }) {
   const center = [-33.0458, -71.6197];
   const mkIcon = (emoji, color, size=28) => L.divIcon({
@@ -1667,15 +1627,48 @@ function ViewMapa({ solicitudes, desmalezados, caminos, operativos }) {
     </div>
   );
 }
-
 function ViewAlertas({ solicitudes, desmalezados, caminos }) {
-  const criticas = solicitudes.filter(s=>s.nivel_alerta==="critica"&&s.estado==="pendiente");
+  const emergenciasBatea = solicitudes.filter(s=>s.es_emergencia&&s.estado==="pendiente");
+  const emergenciasDesmalezado = desmalezados.filter(d=>d.es_emergencia&&d.estado==="pendiente");
+  const emergenciasCamino = caminos.filter(c=>c.es_emergencia&&c.estado==="pendiente");
+  const totalEmergencias = emergenciasBatea.length + emergenciasDesmalezado.length + emergenciasCamino.length;
+  const criticas = solicitudes.filter(s=>s.nivel_alerta==="critica"&&s.estado==="pendiente"&&!s.es_emergencia);
   const advertencias = solicitudes.filter(s=>s.nivel_alerta==="advertencia"&&s.estado==="pendiente");
-  const caminosUrgentes = caminos.filter(c=>c.prioridad==="urgente"&&c.estado==="pendiente");
+  const caminosUrgentes = caminos.filter(c=>c.prioridad==="urgente"&&c.estado==="pendiente"&&!c.es_emergencia);
   return (
     <div style={{ padding:28 }}>
       <h1 style={{ margin:"0 0 20px", fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🔔 Sistema de Alertas</h1>
+      {totalEmergencias > 0 && (
+        <div style={{ marginBottom:24 }}>
+          <h2 style={{ fontSize:16, fontWeight:800, color:"#C62828", marginBottom:12 }}>🚨 Emergencias Activas — Prioridad Inmediata</h2>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {emergenciasBatea.map(s=>(
+              <div key={s.id} style={{ background:"#FFEBEE", border:"2px solid #C62828", borderRadius:10, padding:"12px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div><span style={{ fontWeight:700 }}>🗑️ {s.nombre_vecino}</span> — {s.direccion} <span style={{ fontSize:11, color:"#888" }}>({s.folio})</span></div>
+                <EmergenciaBadge />
+              </div>
+            ))}
+            {emergenciasDesmalezado.map(d=>(
+              <div key={d.id} style={{ background:"#FFEBEE", border:"2px solid #C62828", borderRadius:10, padding:"12px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div><span style={{ fontWeight:700 }}>🌿 {d.nombre_solicitante||"Sin nombre"}</span> — {d.direccion} <span style={{ fontSize:11, color:"#888" }}>({d.folio})</span></div>
+                <EmergenciaBadge />
+              </div>
+            ))}
+            {emergenciasCamino.map(c=>(
+              <div key={c.id} style={{ background:"#FFEBEE", border:"2px solid #C62828", borderRadius:10, padding:"12px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div><span style={{ fontWeight:700 }}>🛤️ {c.nombre_solicitante||"Registro interno"}</span> — {c.direccion} <span style={{ fontSize:11, color:"#888" }}>({c.folio})</span></div>
+                <EmergenciaBadge />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16, marginBottom:28 }}>
+        <div style={{ background:"#FFEBEE", border:"2px solid #C62828", borderRadius:12, padding:"14px 18px", textAlign:"center" }}>
+          <div style={{ fontSize:34, fontWeight:800, color:"#C62828" }}>{totalEmergencias}</div>
+          <div style={{ fontSize:13, fontWeight:600, color:"#C62828" }}>🚨 Emergencias</div>
+          <div style={{ fontSize:11, color:"#888", marginTop:3 }}>Prioridad inmediata</div>
+        </div>
         <div style={{ background:C.rojoS, border:"1px solid #FFCDD2", borderRadius:12, padding:"14px 18px", textAlign:"center" }}>
           <div style={{ fontSize:34, fontWeight:800, color:C.rojo }}>{criticas.length}</div>
           <div style={{ fontSize:13, fontWeight:600, color:C.rojo }}>🔴 Bateas Críticas</div>
@@ -1685,11 +1678,6 @@ function ViewAlertas({ solicitudes, desmalezados, caminos }) {
           <div style={{ fontSize:34, fontWeight:800, color:C.naranja }}>{advertencias.length}</div>
           <div style={{ fontSize:13, fontWeight:600, color:C.naranja }}>⚠️ Advertencia</div>
           <div style={{ fontSize:11, color:"#888", marginTop:3 }}>11-19 días</div>
-        </div>
-        <div style={{ background:C.rojoS, border:"1px solid #FFCDD2", borderRadius:12, padding:"14px 18px", textAlign:"center" }}>
-          <div style={{ fontSize:34, fontWeight:800, color:C.rojo }}>{caminosUrgentes.length}</div>
-          <div style={{ fontSize:13, fontWeight:600, color:C.rojo }}>🛤️ Caminos Urgentes</div>
-          <div style={{ fontSize:11, color:"#888", marginTop:3 }}>Prioridad urgente</div>
         </div>
         <div style={{ background:C.verdeS, border:"1px solid #C8E6C9", borderRadius:12, padding:"14px 18px", textAlign:"center" }}>
           <div style={{ fontSize:34, fontWeight:800, color:C.verde }}>{desmalezados.filter(d=>d.estado==="pendiente").length}</div>
@@ -1731,7 +1719,6 @@ function ViewAlertas({ solicitudes, desmalezados, caminos }) {
     </div>
   );
 }
-
 function ModalClusteringResultado({ resultado, onClose }) {
   if (!resultado) return null;
   return (
@@ -1764,7 +1751,6 @@ function ModalClusteringResultado({ resultado, onClose }) {
     </div>
   );
 }
-
 // ── MODAL ASIGNAR BATEA CON FECHA INICIO Y DÍAS EDITABLES ────────────────────
 function ModalAsignarBatea({ onClose, onConfirmar }) {
   const hoy = new Date().toISOString().split("T")[0];
@@ -1773,7 +1759,6 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
   const [preview, setPreview] = useState(null);
   const [cargando, setCargando] = useState(true);
   const opciones = [3, 5, 7, 10, 14, 21, 30, 45, 60];
-
   useEffect(() => {
     const cargar = async () => {
       try {
@@ -1784,23 +1769,19 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
     };
     cargar();
   }, []);
-
   // Calcular fecha de término en base a fecha inicio + días
   const calcFechaTermino = () => {
     const d = new Date(fechaInicio);
     d.setDate(d.getDate() + diasUso);
     return d.toLocaleDateString("es-CL");
   };
-
   const formatFechaInicio = () => {
     const d = new Date(fechaInicio);
     return d.toLocaleDateString("es-CL");
   };
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:2000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:580, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
-
         {/* Header */}
         <div style={{ padding:"20px 24px", background:C.azul, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
@@ -1809,9 +1790,7 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
           </div>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:34, height:34, borderRadius:"50%", cursor:"pointer", fontSize:20 }}>×</button>
         </div>
-
         <div style={{ padding:24, display:"flex", flexDirection:"column", gap:18 }}>
-
           {/* Vista previa clustering */}
           {cargando ? (
             <div style={{ textAlign:"center", padding:16, color:"#888", fontSize:14 }}>⏳ Analizando solicitudes pendientes...</div>
@@ -1839,7 +1818,6 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
               )}
             </div>
           )}
-
           {/* Fecha de inicio EDITABLE */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:16 }}>
             <div style={{ fontWeight:700, fontSize:14, color:"#333", marginBottom:12 }}>
@@ -1868,7 +1846,6 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
               💡 Puedes programar la asignación para una fecha futura y notificar a los vecinos con anticipación.
             </div>
           </div>
-
           {/* Días de uso */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:16 }}>
             <div style={{ fontWeight:700, fontSize:14, color:"#333", marginBottom:12 }}>⏱ Días de uso de la batea</div>
@@ -1895,7 +1872,6 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
               <span style={{ fontSize:13, color:"#555" }}>días</span>
             </div>
           </div>
-
           {/* Resumen final para vecinos */}
           <div style={{ background:C.verdeS, border:"1px solid #C8E6C9", borderRadius:10, padding:"14px 18px" }}>
             <div style={{ fontWeight:700, fontSize:13, color:C.verde, marginBottom:8 }}>
@@ -1916,11 +1892,9 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
               </div>
             </div>
           </div>
-
           <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
-            ⚠️ El sistema priorizará automáticamente las solicitudes más antiguas y críticas. Las bateas se asignarán solo a vecinos sin batea activa cercana.
+            ⚠️ El sistema priorizará automáticamente las solicitudes más antiguas y críticas — y siempre primero las marcadas como Emergencia. Las bateas se asignarán solo a vecinos sin batea activa cercana.
           </div>
-
           {/* Botones */}
           <div style={{ display:"flex", gap:12, justifyContent:"flex-end" }}>
             <button onClick={onClose} style={{ padding:"10px 24px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:14, cursor:"pointer" }}>Cancelar</button>
@@ -1942,19 +1916,15 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
     </div>
   );
 }
-
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // OPERATIVO CENTRAL
 // ═══════════════════════════════════════════════════════════════════════════════
-
 const TIPOS_OPERATIVO = [
   "general","bateas","desmalezado","arreglo_caminos","limpieza",
   "pavimentación","iluminación","areas_verdes","emergencia","otro"
 ];
 const COLOR_OC = "#1B5E20";
 const BG_OC = "#E8F5E9";
-
 function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
   const hoy = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
@@ -1970,10 +1940,8 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-
   const toggleServicio = (s) => setServicios(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev,s]);
   const agregarMiembro = () => { if (nuevoMiembro.trim()) { setEquipo(e=>[...e,nuevoMiembro.trim()]); setNuevoMiembro(""); } };
-
   const handleGuardar = async () => {
     if (!form.titulo.trim()) { setError("El título es obligatorio"); return; }
     setGuardando(true);
@@ -1990,9 +1958,7 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
     } catch { setError("Error de conexión"); }
     setGuardando(false);
   };
-
   const serviciosOpts = ["🗑️ Bateas","🌿 Desmalezado","🛤️ Arreglo Caminos","💡 Iluminación","🌳 Áreas Verdes","🧹 Limpieza","🚧 Pavimentación","🔧 Mantención","🚒 Emergencia","📋 Otro"];
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:680, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
@@ -2005,7 +1971,6 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
         </div>
         <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
           {error && <div style={{ background:"#FFEBEE", border:"1px solid #FFCDD2", borderRadius:8, padding:"10px 14px", fontSize:13, color:C.rojo }}>{error}</div>}
-
           <SeccionForm titulo="📋 Identificación del Operativo" color={COLOR_OC}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
               <div style={{ gridColumn:"1/-1" }}>
@@ -2044,7 +2009,6 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
               </div>
             </div>
           </SeccionForm>
-
           {/* Equipo */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
             <div style={{ fontSize:13, fontWeight:700, color:COLOR_OC, marginBottom:10 }}>👷 Equipo / Personal</div>
@@ -2063,7 +2027,6 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
               </div>
             )}
           </div>
-
           {/* Servicios incluidos */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
             <div style={{ fontSize:13, fontWeight:700, color:COLOR_OC, marginBottom:10 }}>🔧 Servicios incluidos en este operativo</div>
@@ -2078,7 +2041,6 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
               ))}
             </div>
           </div>
-
           {/* Georref */}
           <div style={{ background:"#F0F7FF", borderRadius:10, padding:14, border:"1px solid #BBDEFB" }}>
             <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional)</span></h3>
@@ -2087,13 +2049,10 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
               <Field label="Longitud"><input style={{...inp, fontFamily:"monospace"}} value={form.longitud} onChange={e=>set("longitud",e.target.value)} placeholder="-71.6197" type="number" step="any" /></Field>
             </div>
           </div>
-
           <MultiFotoUploader label="📷 Fotos ANTES del operativo — máx 5" fotos={fotosAntes} setFotos={setFotosAntes} />
-
           <Field label="Observaciones">
             <textarea style={{...inp, minHeight:60, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} placeholder="Notas adicionales, condiciones especiales..." />
           </Field>
-
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
             <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
             <button onClick={handleGuardar} disabled={guardando} style={{ padding:"9px 24px", borderRadius:8, border:"none", background:guardando?"#888":COLOR_OC, color:"#FFF", fontSize:13, fontWeight:700, cursor:guardando?"not-allowed":"pointer" }}>
@@ -2105,7 +2064,6 @@ function ModalNuevoOperativoCentral({ onClose, onGuardar }) {
     </div>
   );
 }
-
 function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
   const [form, setForm] = useState({
     titulo: operativo.titulo || "",
@@ -2129,10 +2087,8 @@ function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-
   const toggleServicio = (s) => setServicios(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev,s]);
   const agregarMiembro = () => { if (nuevoMiembro.trim()) { setEquipo(e=>[...e,nuevoMiembro.trim()]); setNuevoMiembro(""); } };
-
   const handleGuardar = async () => {
     if (!form.titulo.trim()) { setError("El título es obligatorio"); return; }
     setGuardando(true);
@@ -2149,9 +2105,7 @@ function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
     } catch { setError("Error de conexión"); }
     setGuardando(false);
   };
-
   const serviciosOpts = ["🗑️ Bateas","🌿 Desmalezado","🛤️ Arreglo Caminos","💡 Iluminación","🌳 Áreas Verdes","🧹 Limpieza","🚧 Pavimentación","🔧 Mantención","🚒 Emergencia","📋 Otro"];
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:680, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
@@ -2164,7 +2118,6 @@ function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
         </div>
         <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
           {error && <div style={{ background:"#FFEBEE", border:"1px solid #FFCDD2", borderRadius:8, padding:"10px 14px", fontSize:13, color:C.rojo }}>{error}</div>}
-
           <SeccionForm titulo="📋 Identificación del Operativo" color={COLOR_OC}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
               <div style={{ gridColumn:"1/-1" }}>
@@ -2203,7 +2156,6 @@ function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
               </div>
             </div>
           </SeccionForm>
-
           {/* Equipo */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
             <div style={{ fontSize:13, fontWeight:700, color:COLOR_OC, marginBottom:10 }}>👷 Equipo / Personal</div>
@@ -2222,7 +2174,6 @@ function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
               </div>
             )}
           </div>
-
           {/* Servicios */}
           <div style={{ background:"#F8FAFE", borderRadius:10, padding:14 }}>
             <div style={{ fontSize:13, fontWeight:700, color:COLOR_OC, marginBottom:10 }}>🔧 Servicios incluidos</div>
@@ -2237,7 +2188,6 @@ function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
               ))}
             </div>
           </div>
-
           {/* Georref */}
           <div style={{ background:"#F0F7FF", borderRadius:10, padding:14, border:"1px solid #BBDEFB" }}>
             <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional)</span></h3>
@@ -2246,17 +2196,13 @@ function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
               <Field label="Longitud"><input style={{...inp, fontFamily:"monospace"}} value={form.longitud} onChange={e=>set("longitud",e.target.value)} type="number" step="any" /></Field>
             </div>
           </div>
-
           <MultiFotoUploader label="📷 Fotos ANTES — editar o agregar (máx 5)" fotos={fotosAntes} setFotos={setFotosAntes} />
-
           <Field label="Observaciones">
             <textarea style={{...inp, minHeight:60, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} />
           </Field>
-
           <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
             ⚠️ Solo se actualizarán los campos que modifiques. El código, estado y fecha de creación no cambian.
           </div>
-
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
             <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
             <button onClick={handleGuardar} disabled={guardando} style={{ padding:"9px 24px", borderRadius:8, border:"none", background:guardando?"#888":COLOR_OC, color:"#FFF", fontSize:13, fontWeight:700, cursor:guardando?"not-allowed":"pointer" }}>
@@ -2268,15 +2214,12 @@ function ModalEditarOperativoCentral({ operativo, onClose, onGuardar }) {
     </div>
   );
 }
-
 function ViewOperativoCentral({ operativos, loading, onRecargar }) {
   const [modalNuevo, setModalNuevo] = useState(false);
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [modalCerrarId, setModalCerrarId] = useState(null);
   const [editando, setEditando] = useState(null);
-
   const pc = { urgente:C.rojo, alta:C.naranja, normal:C.verde };
-
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
       const res = await fetch(`${API_URL}/api/operativos-centrales/${modalAsignarId}/asignar`, {
@@ -2288,7 +2231,6 @@ function ViewOperativoCentral({ operativos, loading, onRecargar }) {
       else alert("❌ "+(data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
-
   const handleCerrar = async (fotos_despues, observaciones) => {
     try {
       const res = await fetch(`${API_URL}/api/operativos-centrales/${modalCerrarId}/cerrar`, {
@@ -2300,10 +2242,8 @@ function ViewOperativoCentral({ operativos, loading, onRecargar }) {
       else alert("❌ "+(data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
-
   const estadoColor = { planificado:C.azul, en_ejecucion:C.naranja, completado:C.verde };
   const estadoBg = { planificado:C.azulS, en_ejecucion:C.naranjaS, completado:C.verdeS };
-
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -2315,7 +2255,6 @@ function ViewOperativoCentral({ operativos, loading, onRecargar }) {
       <p style={{ margin:"0 0 20px", color:"#666", fontSize:14 }}>
         Operativos mayores ejecutados desde la Dirección de Operaciones o la Municipalidad — bateas, desmalezados, caminos, limpieza, emergencias y más.
       </p>
-
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> :
         operativos.length === 0 ? (
           <div style={{ textAlign:"center", padding:60, background:"#F8F8F8", borderRadius:12, color:"#888" }}>
@@ -2326,11 +2265,12 @@ function ViewOperativoCentral({ operativos, loading, onRecargar }) {
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
             {operativos.map(op => (
-              <div key={op.id} style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`5px solid ${estadoColor[op.estado]||COLOR_OC}`, borderRadius:12, padding:"18px 22px" }}>
+              <div key={op.id} style={{ background:"#FFF", border: op.tipo_operativo==="emergencia" ? "2px solid #C62828" : "1px solid #E0E0E0", borderLeft:`5px solid ${op.tipo_operativo==="emergencia"?"#C62828":(estadoColor[op.estado]||COLOR_OC)}`, borderRadius:12, padding:"18px 22px" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16 }}>
                   <div style={{ flex:1 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
                       <span style={{ fontWeight:700, color:COLOR_OC, fontFamily:"monospace", fontSize:13 }}>{op.codigo}</span>
+                      {op.tipo_operativo==="emergencia" && <EmergenciaBadge small />}
                       <span style={{ background:estadoBg[op.estado]||BG_OC, color:estadoColor[op.estado]||COLOR_OC, border:`1px solid ${estadoColor[op.estado]||COLOR_OC}33`, borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:600 }}>
                         {op.estado?.replace("_"," ").toUpperCase()}
                       </span>
@@ -2405,7 +2345,6 @@ function ViewOperativoCentral({ operativos, loading, onRecargar }) {
           </div>
         )
       }
-
       {modalNuevo && <ModalNuevoOperativoCentral onClose={()=>setModalNuevo(false)} onGuardar={()=>{ setModalNuevo(false); onRecargar(); }} />}
       {modalAsignarId && <ModalAsignarServicio titulo="🏛️ Asignar Operativo Central" color={COLOR_OC} onClose={()=>setModalAsignarId(null)} onConfirmar={handleAsignar} />}
       {modalCerrarId && <ModalCierre titulo="🏛️ Cerrar Operativo Central" color={COLOR_OC} onClose={()=>setModalCerrarId(null)} onConfirmar={handleCerrar} />}
@@ -2413,22 +2352,20 @@ function ViewOperativoCentral({ operativos, loading, onRecargar }) {
     </div>
   );
 }
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // GENERADOR DE REPORTES PDF (abre ventana nueva con HTML imprimible)
 // ═══════════════════════════════════════════════════════════════════════════════
-
 function generarHTMLReporte(tipo, datos) {
   const hoy = new Date().toLocaleDateString("es-CL", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
   const horaGen = new Date().toLocaleTimeString("es-CL");
+  const esEmergencia = !!datos.es_emergencia || datos.tipo_operativo === "emergencia";
   const cfg = {
-    batea:            { color:"#1565C0", bg:"#E3F2FD", emoji:"🗑️", titulo:"Asignación de Batea Comunitaria" },
-    desmalezado:      { color:"#2E7D32", bg:"#E8F5E9", emoji:"🌿", titulo:"Operativo de Desmalezado" },
-    camino:           { color:"#E65100", bg:"#FFF3E0", emoji:"🛤️", titulo:"Arreglo de Camino" },
+    batea:            { color: esEmergencia?"#C62828":"#1565C0", bg: esEmergencia?"#FFEBEE":"#E3F2FD", emoji: esEmergencia?"🚨":"🗑️", titulo:"Asignación de Batea Comunitaria" },
+    desmalezado:      { color: esEmergencia?"#C62828":"#2E7D32", bg: esEmergencia?"#FFEBEE":"#E8F5E9", emoji: esEmergencia?"🚨":"🌿", titulo:"Operativo de Desmalezado" },
+    camino:           { color: esEmergencia?"#C62828":"#E65100", bg: esEmergencia?"#FFEBEE":"#FFF3E0", emoji: esEmergencia?"🚨":"🛤️", titulo:"Arreglo de Camino" },
     operativo:        { color:"#6A1B9A", bg:"#F3E5F5", emoji:"🔧", titulo:"Operativo Conjunto Batea + Desmalezado" },
-    operativo_central:{ color:"#1B5E20", bg:"#E8F5E9", emoji:"🏛️", titulo:"Operativo Central Municipal" },
+    operativo_central:{ color: esEmergencia?"#C62828":"#1B5E20", bg: esEmergencia?"#FFEBEE":"#E8F5E9", emoji: esEmergencia?"🚨":"🏛️", titulo:"Operativo Central Municipal" },
   }[tipo] || { color:"#1565C0", bg:"#E3F2FD", emoji:"📄", titulo:"Informe" };
-
   const renderFotos = (fotos, label) => {
     if (!fotos || fotos.length === 0)
       return `<div style="padding:16px;background:#F5F5F5;border-radius:8px;text-align:center;color:#999;font-size:13px;">Sin fotos registradas</div>`;
@@ -2440,19 +2377,16 @@ function generarHTMLReporte(tipo, datos) {
       </div>`).join("")}
     </div>`;
   };
-
   const lat = datos.latitud || datos.centroide_lat || 0;
   const lon = datos.longitud || datos.centroide_lon || 0;
-
   // Mapa estático OSM — imagen fija, funciona en correos y PDFs
   const zoom = 16;
   const mapaEstatico = lat
     ? `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=${zoom}&size=760x280&markers=${lat},${lon},red-pushpin`
     : null;
-
   // Nombre del archivo PDF
   const nombreArchivo = `BateaControl_${datos.folio||datos.codigo||"informe"}_${new Date().toLocaleDateString("es-CL").replace(/\//g,"-")}.pdf`;
-
+  const filaEmergencia = `<div class="dato" style="grid-column:1/-1;background:${esEmergencia?"#FFEBEE":"#F8F8F8"};border-left:3px solid ${esEmergencia?"#C62828":cfg.color}"><div class="dato-label">Tipo de Solicitud</div><div class="dato-valor" style="color:${esEmergencia?"#C62828":"#1a1a1a"}">${esEmergencia?"🚨 EMERGENCIA — Prioridad Inmediata":"Normal"}</div></div>`;
   const datosPrincipales = tipo === "batea" ? `
     <div class="dato"><div class="dato-label">Vecino Solicitante</div><div class="dato-valor">${datos.nombre_vecino||"—"}</div></div>
     <div class="dato"><div class="dato-label">RUT</div><div class="dato-valor">${datos.rut||"—"}</div></div>
@@ -2460,6 +2394,7 @@ function generarHTMLReporte(tipo, datos) {
     <div class="dato"><div class="dato-label">Teléfono</div><div class="dato-valor">${datos.telefono||"—"}</div></div>
     <div class="dato"><div class="dato-label">Número de Batea</div><div class="dato-valor">${datos.numero_batea||"—"}</div></div>
     <div class="dato"><div class="dato-label">Fecha Solicitud</div><div class="dato-valor">${datos.fecha_solicitud||"—"}</div></div>
+    ${filaEmergencia}
   ` : tipo === "desmalezado" ? `
     <div class="dato"><div class="dato-label">Solicitante / Referencia</div><div class="dato-valor">${datos.nombre_solicitante||"Registro interno"}</div></div>
     <div class="dato"><div class="dato-label">Tipo</div><div class="dato-valor">${datos.es_recordatorio?"📝 Recordatorio interno":"👤 Solicitud vecinal"}</div></div>
@@ -2467,6 +2402,7 @@ function generarHTMLReporte(tipo, datos) {
     <div class="dato"><div class="dato-label">Descripción</div><div class="dato-valor">${datos.descripcion||"—"}</div></div>
     <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
     <div class="dato"><div class="dato-label">Fecha Solicitud</div><div class="dato-valor">${datos.fecha_solicitud||"—"}</div></div>
+    ${filaEmergencia}
   ` : tipo === "camino" ? `
     <div class="dato"><div class="dato-label">Solicitante / Referencia</div><div class="dato-valor">${datos.nombre_solicitante||"Registro interno"}</div></div>
     <div class="dato"><div class="dato-label">Tipo de Vía</div><div class="dato-valor">${datos.tipo_camino||"—"}</div></div>
@@ -2474,6 +2410,7 @@ function generarHTMLReporte(tipo, datos) {
     <div class="dato"><div class="dato-label">Problema Reportado</div><div class="dato-valor">${datos.descripcion_problema||"—"}</div></div>
     <div class="dato"><div class="dato-label">Prioridad</div><div class="dato-valor">${(datos.prioridad||"normal").toUpperCase()}</div></div>
     <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
+    ${filaEmergencia}
   ` : tipo === "operativo_central" ? `
     <div class="dato"><div class="dato-label">Código</div><div class="dato-valor">${datos.codigo||"—"}</div></div>
     <div class="dato"><div class="dato-label">Tipo de Operativo</div><div class="dato-valor">${datos.tipo_operativo||"—"}</div></div>
@@ -2491,7 +2428,6 @@ function generarHTMLReporte(tipo, datos) {
     <div class="dato"><div class="dato-label">Dirección Desmalezado</div><div class="dato-valor">${datos.direccion_desmalezado||"—"}</div></div>
     <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
   `;
-
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Informe — ${datos.folio||datos.codigo||""}</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -2527,31 +2463,25 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1a1a1a;backgro
 .btn-pdf:disabled{background:#AAA;cursor:not-allowed}
 @media print{.btn-bar{display:none}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 </style></head><body><div class="page">
-
 <div class="btn-bar">
   <span id="estado-btn" style="font-size:12px;color:#888"></span>
   <button class="btn-pdf" id="btn-pdf" onclick="descargarPDF()">⬇️ Descargar PDF</button>
   <button class="btn-close" onclick="window.close()">✕ Cerrar</button>
 </div>
-
 <div id="contenido-pdf">
-
 <div class="header">
   <div>
     <div class="municipio">BateaControl — Sistema Municipal de Gestión Territorial</div>
-    <div class="titulo">${cfg.emoji} ${cfg.titulo}</div>
+    <div class="titulo">${cfg.emoji} ${cfg.titulo}${esEmergencia?" — EMERGENCIA":""}</div>
     <div class="subtitulo">Informe Oficial — ${hoy} a las ${horaGen}</div>
   </div>
   <div><div class="badge">${datos.folio||datos.codigo||"—"}</div></div>
 </div>
-
 <div class="seccion"><span class="estado-badge">Estado: ${(datos.estado||"").toUpperCase()}</span></div>
-
 <div class="seccion">
   <div class="sec-titulo">📋 Datos del Registro</div>
   <div class="grid-2">${datosPrincipales}</div>
 </div>
-
 ${(datos.fecha_inicio||datos.fecha_asignacion) ? `
 <div class="seccion">
   <div class="sec-titulo">📅 Planificación Temporal</div>
@@ -2563,7 +2493,6 @@ ${(datos.fecha_inicio||datos.fecha_asignacion) ? `
     </div>
   </div>
 </div>` : ""}
-
 ${mapaEstatico ? `
 <div class="seccion">
   <div class="sec-titulo">📍 Georreferencia</div>
@@ -2574,37 +2503,30 @@ ${mapaEstatico ? `
   <img class="mapa-img" src="${mapaEstatico}" alt="Mapa de ubicación" crossorigin="anonymous" onerror="this.src='';this.alt='Mapa no disponible';this.style.height='60px';this.style.background='#F5F5F5'" />
   <div class="mapa-caption">📌 Ubicación georreferenciada — ${parseFloat(lat).toFixed(5)}, ${parseFloat(lon).toFixed(5)} — OpenStreetMap</div>
 </div>` : ""}
-
 <div class="seccion">
   <div class="sec-titulo">📷 Fotografías — Estado ANTES</div>
   ${renderFotos(datos.fotos_antes, "ANTES")}
 </div>
-
 <div class="seccion">
   <div class="sec-titulo">📷 Fotografías — Estado DESPUÉS</div>
   ${datos.estado === "completado"
     ? renderFotos(datos.fotos_despues, "DESPUÉS")
     : `<div style="padding:16px;background:#FFF3E0;border-radius:8px;text-align:center;color:#E65100;font-size:13px;border:1px solid #FFE0B2">⏳ Operativo pendiente de cierre — Las fotos del resultado se agregarán al completar el trabajo.</div>`}
 </div>
-
 ${(datos.observaciones||datos.observaciones_cierre) ? `
 <div class="seccion">
   <div class="sec-titulo">📝 Observaciones</div>
   <div style="padding:14px;background:#F8F8F8;border-radius:8px;border-left:3px solid ${cfg.color};font-size:13px;line-height:1.6">${datos.observaciones||datos.observaciones_cierre}</div>
 </div>` : ""}
-
 <div class="firma-sec">
   <div class="firma"><div style="margin-bottom:40px"></div>Responsable del Operativo</div>
   <div class="firma"><div style="margin-bottom:40px"></div>Jefe de Servicio Municipal</div>
 </div>
-
 <div class="footer">
   <div>BateaControl — Sistema Municipal de Gestión Territorial</div>
   <div>Folio: ${datos.folio||datos.codigo||"—"} | Generado: ${hoy}</div>
 </div>
-
 </div><!-- fin contenido-pdf -->
-
 <script>
 function descargarPDF() {
   const btn = document.getElementById('btn-pdf');
@@ -2612,7 +2534,6 @@ function descargarPDF() {
   btn.disabled = true;
   btn.textContent = '⏳ Generando PDF...';
   estado.textContent = 'Procesando imágenes y mapa...';
-
   const elemento = document.getElementById('contenido-pdf');
   const opciones = {
     margin: [10, 10, 10, 10],
@@ -2630,7 +2551,6 @@ function descargarPDF() {
       orientation: 'portrait'
     }
   };
-
   html2pdf().set(opciones).from(elemento).save()
     .then(() => {
       btn.disabled = false;
@@ -2646,16 +2566,13 @@ function descargarPDF() {
     });
 }
 </script>
-
 </div></body></html>`;
 }
-
 function generarReporte(tipo, datos) {
   const html = generarHTMLReporte(tipo, datos);
   const ventana = window.open("", "_blank", "width=900,height=800,scrollbars=yes");
   if (ventana) { ventana.document.write(html); ventana.document.close(); }
 }
-
 // ── VISTA REPORTES ────────────────────────────────────────────────────────────
 function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativosCentrales }) {
   const [filtro, setFiltro] = useState("todos");
@@ -2664,31 +2581,29 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativ
   const camAsig = caminos.filter(c => c.estado !== "pendiente");
   const ocLista = operativosCentrales || [];
   const total = bateasAsig.length + desAsig.length + camAsig.length + operativos.length + ocLista.length;
-
-  const ItemReporte = ({ emoji, folio, titulo, subtitulo, info, color, onGenerar }) => (
-    <div style={{ background:"#FFF", border:"1px solid #E0E0E0", borderLeft:`4px solid ${color}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+  const ItemReporte = ({ emoji, folio, titulo, subtitulo, info, color, esEmergencia, onGenerar }) => (
+    <div style={{ background:"#FFF", border: esEmergencia?"2px solid #C62828":"1px solid #E0E0E0", borderLeft:`4px solid ${esEmergencia?"#C62828":color}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
       <div style={{ flex:1 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
           <span style={{ fontSize:16 }}>{emoji}</span>
-          <span style={{ fontWeight:700, color, fontFamily:"monospace", fontSize:13 }}>{folio}</span>
+          <span style={{ fontWeight:700, color:esEmergencia?"#C62828":color, fontFamily:"monospace", fontSize:13 }}>{folio}</span>
+          {esEmergencia && <EmergenciaBadge small />}
         </div>
         <div style={{ fontSize:13, fontWeight:500 }}>{titulo}</div>
         <div style={{ fontSize:12, color:"#666" }}>{subtitulo}</div>
         <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{info}</div>
       </div>
-      <button onClick={onGenerar} style={{ padding:"8px 18px", borderRadius:8, border:"none", background:color, color:"#FFF", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap", marginLeft:16 }}>
+      <button onClick={onGenerar} style={{ padding:"8px 18px", borderRadius:8, border:"none", background:esEmergencia?"#C62828":color, color:"#FFF", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap", marginLeft:16 }}>
         📄 Generar PDF
       </button>
     </div>
   );
-
   return (
     <div style={{ padding:28 }}>
       <div style={{ marginBottom:24 }}>
         <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>📄 Reportes e Informes</h1>
         <p style={{ margin:"4px 0 0", color:"#666", fontSize:14 }}>Genera informes PDF oficiales con fotos ANTES y DESPUÉS, mapa y datos completos</p>
       </div>
-
       <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
         {[
           { id:"todos", label:"Todos", count:total },
@@ -2708,22 +2623,21 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativ
           </button>
         ))}
       </div>
-
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
         {(filtro==="todos"||filtro==="bateas") && bateasAsig.map(s => (
           <ItemReporte key={s.id} emoji="🗑️" folio={s.folio} titulo={s.nombre_vecino} subtitulo={s.direccion}
             info={`Batea: ${s.numero_batea||"—"} · ${s.fecha_solicitud}${s.fotos_antes?.length>0?` · 📷 ${s.fotos_antes.length} foto(s)`:""}`}
-            color="#1565C0" onGenerar={()=>generarReporte("batea",s)} />
+            color="#1565C0" esEmergencia={!!s.es_emergencia} onGenerar={()=>generarReporte("batea",s)} />
         ))}
         {(filtro==="todos"||filtro==="desmalezados") && desAsig.map(d => (
           <ItemReporte key={d.id} emoji="🌿" folio={d.folio} titulo={d.nombre_solicitante||"Registro interno"} subtitulo={d.direccion}
             info={`${d.fecha_inicio?`Inicio: ${d.fecha_inicio}`:""}${d.fecha_termino?` → ${d.fecha_termino}`:""}${d.dias_uso?` (${d.dias_uso}d)`:""} · 📷 ${(d.fotos_antes?.length||0)} antes / ${(d.fotos_despues?.length||0)} después`}
-            color="#2E7D32" onGenerar={()=>generarReporte("desmalezado",d)} />
+            color="#2E7D32" esEmergencia={!!d.es_emergencia} onGenerar={()=>generarReporte("desmalezado",d)} />
         ))}
         {(filtro==="todos"||filtro==="caminos") && camAsig.map(c => (
           <ItemReporte key={c.id} emoji="🛤️" folio={c.folio} titulo={`${c.nombre_solicitante||"Registro interno"} — ${c.tipo_camino}`} subtitulo={c.direccion}
             info={`${c.fecha_inicio?`Inicio: ${c.fecha_inicio}`:""}${c.fecha_termino?` → ${c.fecha_termino}`:""}${c.dias_uso?` (${c.dias_uso}d)`:""} · 📷 ${(c.fotos_antes?.length||0)} antes / ${(c.fotos_despues?.length||0)} después`}
-            color="#E65100" onGenerar={()=>generarReporte("camino",c)} />
+            color="#E65100" esEmergencia={!!c.es_emergencia} onGenerar={()=>generarReporte("camino",c)} />
         ))}
         {(filtro==="todos"||filtro==="operativos") && operativos.map(op => (
           <ItemReporte key={op.id} emoji="🔧" folio={op.codigo} titulo={`Batea: ${op.numero_batea} — ${op.nombre_vecino||""}`} subtitulo={op.direccion_batea||""}
@@ -2735,7 +2649,7 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativ
             titulo={op.titulo}
             subtitulo={`${op.departamento||""} ${op.departamento&&op.sector?"·":""} ${op.sector||""}`}
             info={`${op.responsable_principal?`👤 ${op.responsable_principal}`:""} ${op.fecha_inicio?`· Inicio: ${op.fecha_inicio}`:""}${op.fecha_termino?` → ${op.fecha_termino}`:""} · 📷 ${(op.fotos_antes?.length||0)} antes / ${(op.fotos_despues?.length||0)} después`}
-            color="#1B5E20" onGenerar={()=>generarReporte("operativo_central",op)} />
+            color="#1B5E20" esEmergencia={op.tipo_operativo==="emergencia"} onGenerar={()=>generarReporte("operativo_central",op)} />
         ))}
         {total === 0 && (
           <div style={{ textAlign:"center", padding:60, color:"#888" }}>
@@ -2748,10 +2662,8 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativ
     </div>
   );
 }
-
 // ── BOTONES DE ACCIÓN AGRUPADOS (Asignar / Editar / Realizada / Eliminar) ─────
 function BotonesAccion({ id, endpoint, estado, color, onAsignar, onEditar, onRecargar, labelAsignar="📋 Asignar" }) {
-
   const handleRealizada = async () => {
     if (!window.confirm("¿Marcar este registro como Realizada/Completada?")) return;
     try {
@@ -2761,7 +2673,6 @@ function BotonesAccion({ id, endpoint, estado, color, onAsignar, onEditar, onRec
       else alert("❌ "+(data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
-
   const handleEliminar = async () => {
     if (!window.confirm("¿Eliminar este registro? Esta acción no se puede deshacer.")) return;
     try {
@@ -2771,17 +2682,14 @@ function BotonesAccion({ id, endpoint, estado, color, onAsignar, onEditar, onRec
       else alert("❌ "+(data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
-
   // Estados finales — ya no se puede asignar ni marcar realizada
   const estadoFinal = ["completado","instalada","retirada","finalizada"].includes(estado);
-
   const btnBase = {
     padding:"6px 0", borderRadius:7, fontSize:12, fontWeight:700,
     cursor:"pointer", width:96, textAlign:"center",
     border:"1px solid transparent", display:"flex",
     alignItems:"center", justifyContent:"center", gap:4
   };
-
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"stretch", minWidth:100 }}>
       {/* Asignar — siempre visible */}
@@ -2805,7 +2713,6 @@ function BotonesAccion({ id, endpoint, estado, color, onAsignar, onEditar, onRec
     </div>
   );
 }
-
 // ── APP PRINCIPAL ─────────────────────────────────────────────────────────────
 export default function App() {
   const [activeView, setActiveView] = useState("dashboard");
@@ -2821,7 +2728,6 @@ export default function App() {
   const [modalAsignar, setModalAsignar] = useState(false);
   const [clustering, setClustering] = useState(false);
   const [resultadoClustering, setResultadoClustering] = useState(null);
-
   const cargarDatos = useCallback(async () => {
     try {
       const [rSol, rDes, rCam, rOpe, rKpi, rOC, rSt] = await Promise.all([
@@ -2843,11 +2749,8 @@ export default function App() {
     } catch(err) { console.error("Error:", err); }
     setLoading(false);
   }, []);
-
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
-
   const handleAsignarBatea = () => setModalAsignar(true);
-
   const handleConfirmarAsignacion = useCallback(async (diasUso, fechaInicio) => {
     setModalAsignar(false);
     setClustering(true);
@@ -2862,9 +2765,7 @@ export default function App() {
     } catch { alert("❌ Error de conexión"); }
     setClustering(false);
   }, [cargarDatos]);
-
   const [vecinoPrelleno, setVecinoPrelleno] = useState(null);
-
   const handleGuardar = async (data) => {
     setModalActivo(null);
     // Si viene señal para abrir otro servicio con datos prellenados
@@ -2879,7 +2780,6 @@ export default function App() {
     }
     await cargarDatos();
   };
-
   const renderView = () => {
     switch(activeView) {
       case "dashboard":    return <ViewDashboard kpis={kpis} stats={stats} />;
@@ -2894,10 +2794,9 @@ export default function App() {
       default: return <div style={{ padding:40, textAlign:"center", color:"#888" }}><div style={{ fontSize:48, marginBottom:16 }}>🚧</div><h2>Módulo en desarrollo</h2></div>;
     }
   };
-
   return (
     <div style={{ display:"flex", minHeight:"100vh", background:C.fondo, fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}>
-      <style>{`* { box-sizing:border-box; } .leaflet-container { z-index:1; }`}</style>
+      <style>{`* { box-sizing:border-box; } .leaflet-container { z-index:1; } @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.6; } }`}</style>
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
       <main style={{ flex:1, overflow:"auto", display:"flex", flexDirection:"column" }}>{renderView()}</main>
       {modalActivo==="batea"       && <ModalBatea       onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
