@@ -10,9 +10,23 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://sufficiently-weekends-identity-divide.trycloudflare.com";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
+
+// ngrok (plan gratis) muestra una pagina de advertencia a quien entra por navegador.
+// Este header le dice a ngrok que la peticion viene de nuestra app y que la deje pasar directo.
+// No afecta nada si el backend esta detras de Cloudflare Tunnel (el header simplemente se ignora).
+(function () {
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const url = typeof input === "string" ? input : (input && input.url) || "";
+    if (url.startsWith(API_URL)) {
+      init = { ...(init || {}), headers: { ...((init && init.headers) || {}), "ngrok-skip-browser-warning": "true" } };
+    }
+    return _origFetch(input, init);
+  };
+})();
 
 const C = {
   azul:"#1565C0", azulC:"#1976D2", azulS:"#E3F2FD",
