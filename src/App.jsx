@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://1c1f-200-50-126-98.ngrok-free.app";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -662,6 +662,7 @@ function ModalCamino({ onClose, onGuardar, vecinoPrelleno }) {
 function Sidebar({ activeView, setActiveView }) {
   const items = [
     { id:"dashboard",    icon:"📊", label:"Dashboard"        },
+    { id:"visitas",      icon:"🧭", label:"Visitas Técnicas" },
     { id:"bateas",       icon:"🗑️", label:"Bateas"           },
     { id:"desmalezados", icon:"🌿", label:"Desmalezados"     },
     { id:"caminos",      icon:"🛤️", label:"Arreglo Caminos"  },
@@ -929,14 +930,210 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
   );
 }
 // ── MODAL EDITAR REGISTRO (universal para bateas, desmalezados y caminos) ─────
+// ── MODAL NUEVA VISITA TÉCNICA ───────────────────────────────────────────────
+function ModalVisita({ onClose, onGuardar }) {
+  const [form, setForm] = useState({
+    nombre_vecino: "", rut: "", telefono: "", direccion: "",
+    motivo: "", observaciones: "",
+    latitud: "", longitud: "",
+    es_emergencia: false
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [errores, setErrores] = useState({});
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const validar = () => {
+    const e = {};
+    if (!form.nombre_vecino.trim()) e.nombre_vecino="El nombre del vecino es obligatorio";
+    if (!form.direccion.trim()) e.direccion="La dirección es necesaria para ubicar la visita";
+    if (!form.motivo.trim()) e.motivo="Indica qué está solicitando el vecino";
+    setErrores(e); return Object.keys(e).length===0;
+  };
+  const handleGuardar = async () => {
+    if (!validar()) return;
+    setGuardando(true);
+    try {
+      const lat = form.latitud && !isNaN(parseFloat(form.latitud)) ? parseFloat(form.latitud) : null;
+      const lon = form.longitud && !isNaN(parseFloat(form.longitud)) ? parseFloat(form.longitud) : null;
+      const res = await fetch(`${API_URL}/api/visitas`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ nombre_vecino:form.nombre_vecino, rut:form.rut||"SIN-RUT", telefono:form.telefono, direccion:form.direccion, motivo:form.motivo, observaciones:form.observaciones, latitud:lat, longitud:lon, es_emergencia:form.es_emergencia })
+      });
+      const data = await res.json();
+      if (!res.ok) { alert("❌ "+(data.detail||"Error")); setGuardando(false); return; }
+      onGuardar(data);
+    } catch { alert("❌ Error de conexión"); }
+    setGuardando(false);
+  };
+  return (
+    <Modal titulo="🧭 Nueva Visita Técnica" color={C.morado} onClose={onClose}>
+      <div style={{ background:"#F3E5F5", border:"1px solid #E1BEE7", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.morado }}>
+        💡 Usa esta opción cuando antes de crear una solicitud (batea, desmalezado, arreglo de camino, etc.) se necesita ir primero a inspeccionar en terreno.
+      </div>
+      <CheckboxEmergencia checked={form.es_emergencia} onChange={v=>set("es_emergencia",v)} />
+      <SeccionForm titulo="📋 Datos del Vecino" color={C.morado}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <Field label="Nombre completo" required error={errores.nombre_vecino}>
+            <input style={{...inp, borderColor:errores.nombre_vecino?C.rojo:"#DDD"}} value={form.nombre_vecino} onChange={e=>set("nombre_vecino",e.target.value)} placeholder="Nombre del vecino" />
+          </Field>
+          <Field label="RUT">
+            <input style={inp} value={form.rut} onChange={e=>set("rut",e.target.value)} placeholder="12.345.678-9 (opcional)" />
+          </Field>
+          <Field label="Teléfono">
+            <input style={inp} value={form.telefono} onChange={e=>set("telefono",e.target.value)} placeholder="+56912345678 (opcional)" />
+          </Field>
+          <Field label="Dirección" required error={errores.direccion}>
+            <input style={{...inp, borderColor:errores.direccion?C.rojo:"#DDD"}} value={form.direccion} onChange={e=>set("direccion",e.target.value)} placeholder="Dirección a visitar" />
+          </Field>
+          <div style={{ gridColumn:"1/-1" }}>
+            <Field label="¿Qué está solicitando el vecino?" required error={errores.motivo}>
+              <textarea style={{...inp, minHeight:60, resize:"vertical", borderColor:errores.motivo?C.rojo:"#DDD"}} value={form.motivo} onChange={e=>set("motivo",e.target.value)} placeholder="Ej: solicita batea comunitaria, necesita desmalezado, problema en el camino de acceso..." />
+            </Field>
+          </div>
+          <div style={{ gridColumn:"1/-1" }}>
+            <Field label="Observaciones">
+              <textarea style={{...inp, minHeight:50, resize:"vertical"}} value={form.observaciones} onChange={e=>set("observaciones",e.target.value)} placeholder="Información adicional..." />
+            </Field>
+          </div>
+        </div>
+      </SeccionForm>
+      <div style={{ background:"#F0F7FF", borderRadius:10, padding:16, border:"1px solid #BBDEFB" }}>
+        <h3 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:C.azul }}>📍 Georreferencia <span style={{ fontWeight:400, color:"#888", fontSize:11 }}>(opcional)</span></h3>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <Field label="Latitud">
+            <input style={{...inp, fontFamily:"monospace"}} value={form.latitud} onChange={e=>set("latitud",e.target.value)} placeholder="-33.0458 (opcional)" type="number" step="any" />
+          </Field>
+          <Field label="Longitud">
+            <input style={{...inp, fontFamily:"monospace"}} value={form.longitud} onChange={e=>set("longitud",e.target.value)} placeholder="-71.6197 (opcional)" type="number" step="any" />
+          </Field>
+        </div>
+      </div>
+      <div style={{ background:"#F3E5F5", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.morado }}>
+        📅 Una vez ingresada, agenda la fecha de la visita desde el botón <strong>"Agendar Visita"</strong> en el listado.
+      </div>
+      <BotonesModal onClose={onClose} onGuardar={handleGuardar} guardando={guardando} subiendo={false} />
+    </Modal>
+  );
+}
+// ── MODAL AGENDAR VISITA ──────────────────────────────────────────────────────
+function ModalAsignarVisita({ onClose, onConfirmar }) {
+  const hoy = new Date().toISOString().split("T")[0];
+  const [fechaVisita, setFechaVisita] = useState(hoy);
+  const [responsable, setResponsable] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const handleConfirmar = async () => {
+    setGuardando(true);
+    await onConfirmar(fechaVisita, responsable);
+    setGuardando(false);
+  };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:"#FFF", borderRadius:16, width:"100%", maxWidth:460, boxShadow:"0 20px 60px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding:"18px 24px", background:C.morado, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <h2 style={{ margin:0, color:"#FFF", fontSize:16, fontWeight:700 }}>🧭 Agendar Visita</h2>
+            <p style={{ margin:"2px 0 0", color:"rgba(255,255,255,0.8)", fontSize:12 }}>Elige la fecha y quién realizará la inspección</p>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:18 }}>×</button>
+        </div>
+        <div style={{ padding:22, display:"flex", flexDirection:"column", gap:16 }}>
+          <div>
+            <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>👷 Responsable de la visita</label>
+            <input value={responsable} onChange={e=>setResponsable(e.target.value)}
+              placeholder="Nombre del inspector o cuadrilla"
+              style={{ padding:"10px 14px", borderRadius:8, border:`2px solid ${C.morado}`, fontSize:14, outline:"none", background:"#FFF", width:"100%", boxSizing:"border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>📅 Fecha de la visita</label>
+            <input type="date" value={fechaVisita} min={hoy}
+              onChange={e=>setFechaVisita(e.target.value)}
+              style={{ padding:"10px 14px", borderRadius:8, border:`2px solid ${C.morado}`, fontSize:14, outline:"none", color:C.morado, fontWeight:600, cursor:"pointer" }} />
+          </div>
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+            <button onClick={onClose} style={{ padding:"9px 22px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:13, cursor:"pointer" }}>Cancelar</button>
+            <button onClick={handleConfirmar} disabled={guardando} style={{
+              padding:"9px 22px", borderRadius:8, border:"none",
+              background:guardando?"#888":C.morado, color:"#FFF", fontSize:13, fontWeight:700,
+              cursor:guardando?"not-allowed":"pointer"
+            }}>
+              {guardando ? "⏳ Guardando..." : "✅ Confirmar Fecha"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+// ── VISTA VISITAS TÉCNICAS ────────────────────────────────────────────────────
+function ViewVisitas({ visitas, onNueva, loading, onRecargar }) {
+  const [modalAsignarId, setModalAsignarId] = useState(null);
+  const [editando, setEditando] = useState(null);
+  const handleAsignar = async (fechaVisita, responsable) => {
+    try {
+      const res = await fetch(`${API_URL}/api/visitas/${modalAsignarId}/asignar`, {
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ fecha_visita:fechaVisita, responsable })
+      });
+      const data = await res.json();
+      if (res.ok) { alert(`✅ ${data.mensaje}`); setModalAsignarId(null); onRecargar(); }
+      else alert("❌ " + (data.detail||"Error"));
+    } catch { alert("❌ Error de conexión"); }
+  };
+  return (
+    <div style={{ padding:28 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
+        <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🧭 Visitas Técnicas</h1>
+        <button onClick={onNueva} style={{ background:C.morado, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nueva Visita</button>
+      </div>
+      <div style={{ background:"#F3E5F5", border:"1px solid #E1BEE7", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.morado, marginBottom:18 }}>
+        💡 Registra aquí las solicitudes que requieren una inspección en terreno antes de crear la solicitud definitiva de batea, desmalezado o arreglo de camino.
+      </div>
+      {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
+        <TablaGenerica
+          columnas={["Folio","Vecino","Dirección","Motivo","F. Solicitud","F. Visita","Responsable","Estado","Acción"]}
+          filas={visitas.map((v,i) => ({
+            key:v.id, critica:!!v.es_emergencia, par:i%2===0,
+            celdas:[
+              <span style={{ fontFamily:"monospace", color:C.morado, fontWeight:600, fontSize:12 }}>{v.folio}</span>,
+              <span style={{ fontSize:12 }}>{v.nombre_vecino}
+                {v.es_emergencia&&<span style={{ marginLeft:6 }}><EmergenciaBadge small /></span>}
+              </span>,
+              <span style={{ fontSize:12, color:"#666" }}>{v.direccion}</span>,
+              <span style={{ fontSize:12, color:"#555", maxWidth:220, display:"inline-block" }}>{v.motivo}</span>,
+              <span style={{ fontSize:12, color:"#666" }}>{v.fecha_solicitud}</span>,
+              <span style={{ fontSize:12, color:C.morado, fontWeight:600 }}>{v.fecha_visita||"—"}</span>,
+              <span style={{ fontSize:12, color:"#555" }}>{v.responsable||"—"}</span>,
+              <Badge estado={v.estado} small />,
+              <BotonesAccion
+                id={v.id} endpoint="visitas" estado={v.estado} color={C.morado}
+                labelAsignar="🧭 Agendar Visita"
+                onAsignar={()=>setModalAsignarId(v.id)}
+                onEditar={()=>setEditando(v)}
+                onRecargar={onRecargar}
+              />
+            ]
+          }))}
+          total={visitas.length}
+        />
+      )}
+      {modalAsignarId && (
+        <ModalAsignarVisita onClose={()=>setModalAsignarId(null)} onConfirmar={handleAsignar} />
+      )}
+      {editando && (
+        <ModalEditar tipo="visita" registro={editando}
+          onClose={()=>setEditando(null)}
+          onGuardar={()=>{ setEditando(null); onRecargar(); }} />
+      )}
+    </div>
+  );
+}
 function ModalEditar({ tipo, registro, onClose, onGuardar }) {
   const [form, setForm] = useState({ ...registro });
   const [fotosAntes, setFotosAntes] = useState(registro.fotos_antes || []);
   const [guardando, setGuardando] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-  const endpointMap = { batea:"solicitudes", desmalezado:"desmalezados", camino:"caminos" };
-  const colorMap = { batea:C.azul, desmalezado:C.verde, camino:C.naranja };
-  const tituloMap = { batea:"✏️ Editar Solicitud de Batea", desmalezado:"✏️ Editar Desmalezado", camino:"✏️ Editar Arreglo de Camino" };
+  const endpointMap = { batea:"solicitudes", desmalezado:"desmalezados", camino:"caminos", visita:"visitas" };
+  const colorMap = { batea:C.azul, desmalezado:C.verde, camino:C.naranja, visita:C.morado };
+  const tituloMap = { batea:"✏️ Editar Solicitud de Batea", desmalezado:"✏️ Editar Desmalezado", camino:"✏️ Editar Arreglo de Camino", visita:"✏️ Editar Visita Técnica" };
   const color = colorMap[tipo] || C.azul;
   const handleGuardar = async () => {
     setGuardando(true);
@@ -946,7 +1143,9 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
         ? { nombre_vecino:form.nombre_vecino, rut:form.rut, direccion:form.direccion, telefono:form.telefono, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, observaciones:form.observaciones, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
         : tipo === "desmalezado"
         ? { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
-        : { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.es_emergencia?"urgente":form.prioridad, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia };
+        : tipo === "camino"
+        ? { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.es_emergencia?"urgente":form.prioridad, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
+        : { nombre_vecino:form.nombre_vecino, rut:form.rut, telefono:form.telefono, direccion:form.direccion, motivo:form.motivo, observaciones:form.observaciones, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, es_emergencia:!!form.es_emergencia };
       const res = await fetch(`${API_URL}/api/${endpoint}/${registro.id}/editar`, {
         method:"PUT", headers:{"Content-Type":"application/json"},
         body: JSON.stringify(body)
@@ -1063,11 +1262,45 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
               </Field>
             </div>
           )}
-          {/* Fotos ANTES — editables y se pueden agregar después */}
-          <div style={{ background:"#F8FAFE", borderRadius:10, padding:14, border:"1px solid #E3F2FD" }}>
-            <div style={{ fontSize:13, fontWeight:700, color:color, marginBottom:10 }}>📷 Fotos ANTES — puedes agregar o eliminar</div>
-            <MultiFotoUploader label="" fotos={fotosAntes} setFotos={setFotosAntes} />
-          </div>
+          {tipo === "visita" && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Field label="Nombre vecino" required>
+                <input style={inp} value={form.nombre_vecino||""} onChange={e=>set("nombre_vecino",e.target.value)} placeholder="Nombre completo" />
+              </Field>
+              <Field label="RUT">
+                <input style={inp} value={form.rut||""} onChange={e=>set("rut",e.target.value)} placeholder="12.345.678-9" />
+              </Field>
+              <Field label="Dirección" required>
+                <input style={inp} value={form.direccion||""} onChange={e=>set("direccion",e.target.value)} placeholder="Dirección completa" />
+              </Field>
+              <Field label="Teléfono">
+                <input style={inp} value={form.telefono||""} onChange={e=>set("telefono",e.target.value)} placeholder="+56912345678" />
+              </Field>
+              <Field label="Latitud">
+                <input style={{...inp, fontFamily:"monospace"}} type="number" step="any" value={form.latitud||""} onChange={e=>set("latitud",e.target.value)} />
+              </Field>
+              <Field label="Longitud">
+                <input style={{...inp, fontFamily:"monospace"}} type="number" step="any" value={form.longitud||""} onChange={e=>set("longitud",e.target.value)} />
+              </Field>
+              <div style={{ gridColumn:"1/-1" }}>
+                <Field label="¿Qué está solicitando el vecino?">
+                  <textarea style={{...inp, minHeight:60, resize:"vertical"}} value={form.motivo||""} onChange={e=>set("motivo",e.target.value)} />
+                </Field>
+              </div>
+              <div style={{ gridColumn:"1/-1" }}>
+                <Field label="Observaciones">
+                  <textarea style={{...inp, minHeight:50, resize:"vertical"}} value={form.observaciones||""} onChange={e=>set("observaciones",e.target.value)} />
+                </Field>
+              </div>
+            </div>
+          )}
+          {/* Fotos ANTES — editables y se pueden agregar después (no aplica a Visitas) */}
+          {tipo !== "visita" && (
+            <div style={{ background:"#F8FAFE", borderRadius:10, padding:14, border:"1px solid #E3F2FD" }}>
+              <div style={{ fontSize:13, fontWeight:700, color:color, marginBottom:10 }}>📷 Fotos ANTES — puedes agregar o eliminar</div>
+              <MultiFotoUploader label="" fotos={fotosAntes} setFotos={setFotosAntes} />
+            </div>
+          )}
           {/* Info */}
           <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
             ⚠️ Solo se actualizarán los campos que modifiques. El estado, folio y fecha de solicitud no cambian.
@@ -2738,6 +2971,7 @@ function BotonesAccion({ id, endpoint, estado, color, onAsignar, onEditar, onRec
 export default function App() {
   const [activeView, setActiveView] = useState("dashboard");
   const [solicitudes, setSolicitudes] = useState([]);
+  const [visitas, setVisitas] = useState([]);
   const [desmalezados, setDesmalezados] = useState([]);
   const [caminos, setCaminos] = useState([]);
   const [operativos, setOperativos] = useState([]);
@@ -2751,7 +2985,7 @@ export default function App() {
   const [resultadoClustering, setResultadoClustering] = useState(null);
   const cargarDatos = useCallback(async () => {
     try {
-      const [rSol, rDes, rCam, rOpe, rKpi, rOC, rSt] = await Promise.all([
+      const [rSol, rDes, rCam, rOpe, rKpi, rOC, rSt, rVis] = await Promise.all([
         fetch(`${API_URL}/api/solicitudes`),
         fetch(`${API_URL}/api/desmalezados`),
         fetch(`${API_URL}/api/caminos`),
@@ -2759,8 +2993,10 @@ export default function App() {
         fetch(`${API_URL}/api/dashboard/kpis`),
         fetch(`${API_URL}/api/operativos-centrales`),
         fetch(`${API_URL}/api/estadisticas`),
+        fetch(`${API_URL}/api/visitas`),
       ]);
       if (rSol.ok) { const d=await rSol.json(); setSolicitudes(d.solicitudes||[]); }
+      if (rVis.ok) { const d=await rVis.json(); setVisitas(d.visitas||[]); }
       if (rDes.ok) { const d=await rDes.json(); setDesmalezados(d.desmalezados||[]); }
       if (rCam.ok) { const d=await rCam.json(); setCaminos(d.caminos||[]); }
       if (rOpe.ok) { const d=await rOpe.json(); setOperativos(d.operativos||[]); }
@@ -2804,6 +3040,7 @@ export default function App() {
   const renderView = () => {
     switch(activeView) {
       case "dashboard":    return <ViewDashboard kpis={kpis} stats={stats} />;
+      case "visitas":      return <ViewVisitas visitas={visitas} onNueva={()=>setModalActivo("visita")} loading={loading} onRecargar={cargarDatos} />;
       case "bateas":       return <ViewBateas solicitudes={solicitudes} onNueva={()=>setModalActivo("batea")} loading={loading} onAsignarBatea={handleAsignarBatea} clustering={clustering} onRecargar={cargarDatos} />;
       case "desmalezados": return <ViewDesmalezados desmalezados={desmalezados} onNuevo={()=>setModalActivo("desmalezado")} loading={loading} onRecargar={cargarDatos} />;
       case "caminos":      return <ViewCaminos caminos={caminos} onNuevo={()=>setModalActivo("camino")} loading={loading} onRecargar={cargarDatos} />;
@@ -2820,6 +3057,7 @@ export default function App() {
       <style>{`* { box-sizing:border-box; } .leaflet-container { z-index:1; } @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.6; } }`}</style>
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
       <main style={{ flex:1, overflow:"auto", display:"flex", flexDirection:"column" }}>{renderView()}</main>
+      {modalActivo==="visita"      && <ModalVisita      onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} />}
       {modalActivo==="batea"       && <ModalBatea       onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
       {modalActivo==="desmalezado" && <ModalDesmalezado onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
       {modalActivo==="camino"      && <ModalCamino      onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
