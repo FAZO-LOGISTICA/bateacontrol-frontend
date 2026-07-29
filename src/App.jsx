@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://7466-200-50-126-98.ngrok-free.app";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -2619,6 +2619,7 @@ function generarHTMLReporte(tipo, datos) {
     camino:           { color: esEmergencia?"#C62828":"#E65100", bg: esEmergencia?"#FFEBEE":"#FFF3E0", emoji: esEmergencia?"🚨":"🛤️", titulo:"Arreglo de Camino" },
     operativo:        { color:"#6A1B9A", bg:"#F3E5F5", emoji:"🔧", titulo:"Operativo Conjunto Batea + Desmalezado" },
     operativo_central:{ color: esEmergencia?"#C62828":"#1B5E20", bg: esEmergencia?"#FFEBEE":"#E8F5E9", emoji: esEmergencia?"🚨":"🏛️", titulo:"Operativo Central Municipal" },
+    visita:           { color: esEmergencia?"#C62828":"#6A1B9A", bg: esEmergencia?"#FFEBEE":"#F3E5F5", emoji: esEmergencia?"🚨":"🧭", titulo:"Visita Técnica — Inspección en Terreno" },
   }[tipo] || { color:"#1565C0", bg:"#E3F2FD", emoji:"📄", titulo:"Informe" };
   const renderFotos = (fotos, label) => {
     if (!fotos || fotos.length === 0)
@@ -2674,6 +2675,15 @@ function generarHTMLReporte(tipo, datos) {
     <div class="dato"><div class="dato-label">Prioridad</div><div class="dato-valor">${(datos.prioridad||"normal").toUpperCase()}</div></div>
     ${datos.equipo?.length>0?`<div class="dato" style="grid-column:1/-1"><div class="dato-label">Equipo / Personal</div><div class="dato-valor">${datos.equipo.join(", ")}</div></div>`:""}
     ${datos.servicios_incluidos?.length>0?`<div class="dato" style="grid-column:1/-1"><div class="dato-label">Servicios Incluidos</div><div class="dato-valor">${datos.servicios_incluidos.join(" · ")}</div></div>`:""}
+  ` : tipo === "visita" ? `
+    <div class="dato"><div class="dato-label">Vecino</div><div class="dato-valor">${datos.nombre_vecino||"—"}</div></div>
+    <div class="dato"><div class="dato-label">RUT</div><div class="dato-valor">${datos.rut||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Dirección</div><div class="dato-valor">${datos.direccion||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Teléfono</div><div class="dato-valor">${datos.telefono||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Responsable de la visita</div><div class="dato-valor">${datos.responsable||"—"}</div></div>
+    <div class="dato"><div class="dato-label">Fecha Solicitud</div><div class="dato-valor">${datos.fecha_solicitud||"—"}</div></div>
+    <div class="dato" style="grid-column:1/-1"><div class="dato-label">¿Qué está solicitando el vecino?</div><div class="dato-valor">${datos.motivo||"—"}</div></div>
+    ${filaEmergencia}
   ` : `
     <div class="dato"><div class="dato-label">Código Operativo</div><div class="dato-valor">${datos.codigo||"—"}</div></div>
     <div class="dato"><div class="dato-label">Batea Asignada</div><div class="dato-valor">${datos.numero_batea||"—"}</div></div>
@@ -2736,12 +2746,12 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1a1a1a;backgro
   <div class="sec-titulo">📋 Datos del Registro</div>
   <div class="grid-2">${datosPrincipales}</div>
 </div>
-${(datos.fecha_inicio||datos.fecha_asignacion) ? `
+${(datos.fecha_inicio||datos.fecha_asignacion||datos.fecha_visita) ? `
 <div class="seccion">
   <div class="sec-titulo">📅 Planificación Temporal</div>
   <div class="fechas-box">
     <div class="grid-3">
-      <div class="fecha-item"><div class="fecha-label">Fecha Inicio</div><div class="fecha-valor">${datos.fecha_inicio||datos.fecha_asignacion||"—"}</div></div>
+      <div class="fecha-item"><div class="fecha-label">${tipo==="visita"?"Fecha de Visita":"Fecha Inicio"}</div><div class="fecha-valor">${datos.fecha_inicio||datos.fecha_asignacion||datos.fecha_visita||"—"}</div></div>
       <div class="fecha-item"><div class="fecha-label">Duración</div><div class="fecha-valor">${datos.dias_uso?datos.dias_uso+" días":"—"}</div></div>
       <div class="fecha-item"><div class="fecha-label">Fecha Término</div><div class="fecha-valor">${datos.fecha_termino||"—"}</div></div>
     </div>
@@ -2757,15 +2767,16 @@ ${mapaEstatico ? `
   <img class="mapa-img" src="${mapaEstatico}" alt="Mapa de ubicación" crossorigin="anonymous" onerror="this.src='';this.alt='Mapa no disponible';this.style.height='60px';this.style.background='#F5F5F5'" />
   <div class="mapa-caption">📌 Ubicación georreferenciada — ${parseFloat(lat).toFixed(5)}, ${parseFloat(lon).toFixed(5)} — OpenStreetMap</div>
 </div>` : ""}
+${tipo !== "visita" ? `
 <div class="seccion">
   <div class="sec-titulo">📷 Fotografías — Estado ANTES</div>
   ${renderFotos(datos.fotos_antes, "ANTES")}
-</div>
+</div>` : ""}
 <div class="seccion">
-  <div class="sec-titulo">📷 Fotografías — Estado DESPUÉS</div>
+  <div class="sec-titulo">${tipo==="visita"?"📷 Fotografías de la Visita":"📷 Fotografías — Estado DESPUÉS"}</div>
   ${datos.estado === "completado"
-    ? renderFotos(datos.fotos_despues, "DESPUÉS")
-    : `<div style="padding:16px;background:#FFF3E0;border-radius:8px;text-align:center;color:#E65100;font-size:13px;border:1px solid #FFE0B2">⏳ Operativo pendiente de cierre — Las fotos del resultado se agregarán al completar el trabajo.</div>`}
+    ? renderFotos(datos.fotos_despues, tipo==="visita"?"VISITA":"DESPUÉS")
+    : `<div style="padding:16px;background:#FFF3E0;border-radius:8px;text-align:center;color:#E65100;font-size:13px;border:1px solid #FFE0B2">⏳ ${tipo==="visita"?"Visita pendiente de realizar":"Operativo pendiente de cierre"} — Las fotos se agregarán al completar.</div>`}
 </div>
 ${(datos.observaciones||datos.observaciones_cierre) ? `
 <div class="seccion">
@@ -2828,13 +2839,14 @@ function generarReporte(tipo, datos) {
   if (ventana) { ventana.document.write(html); ventana.document.close(); }
 }
 // ── VISTA REPORTES ────────────────────────────────────────────────────────────
-function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativosCentrales }) {
+function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativosCentrales, visitas }) {
   const [filtro, setFiltro] = useState("todos");
   const bateasAsig = solicitudes.filter(s => s.numero_batea);
   const desAsig = desmalezados.filter(d => d.estado !== "pendiente");
   const camAsig = caminos.filter(c => c.estado !== "pendiente");
   const ocLista = operativosCentrales || [];
-  const total = bateasAsig.length + desAsig.length + camAsig.length + operativos.length + ocLista.length;
+  const visAsig = (visitas||[]).filter(v => v.estado !== "pendiente");
+  const total = bateasAsig.length + desAsig.length + camAsig.length + operativos.length + ocLista.length + visAsig.length;
   const ItemReporte = ({ emoji, folio, titulo, subtitulo, info, color, esEmergencia, onGenerar }) => (
     <div style={{ background:"#FFF", border: esEmergencia?"2px solid #C62828":"1px solid #E0E0E0", borderLeft:`4px solid ${esEmergencia?"#C62828":color}`, borderRadius:10, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
       <div style={{ flex:1 }}>
@@ -2861,6 +2873,7 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativ
       <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
         {[
           { id:"todos", label:"Todos", count:total },
+          { id:"visitas", label:"🧭 Visitas", count:visAsig.length },
           { id:"bateas", label:"🗑️ Bateas", count:bateasAsig.length },
           { id:"desmalezados", label:"🌿 Desmalezados", count:desAsig.length },
           { id:"caminos", label:"🛤️ Caminos", count:camAsig.length },
@@ -2878,6 +2891,11 @@ function ViewReportes({ solicitudes, desmalezados, caminos, operativos, operativ
         ))}
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {(filtro==="todos"||filtro==="visitas") && visAsig.map(v => (
+          <ItemReporte key={v.id} emoji="🧭" folio={v.folio} titulo={v.nombre_vecino} subtitulo={v.direccion}
+            info={`${v.fecha_visita?`Visita: ${v.fecha_visita}`:""}${v.responsable?` · 👷 ${v.responsable}`:""} · ${v.fecha_solicitud}`}
+            color="#6A1B9A" esEmergencia={!!v.es_emergencia} onGenerar={()=>generarReporte("visita",v)} />
+        ))}
         {(filtro==="todos"||filtro==="bateas") && bateasAsig.map(s => (
           <ItemReporte key={s.id} emoji="🗑️" folio={s.folio} titulo={s.nombre_vecino} subtitulo={s.direccion}
             info={`Batea: ${s.numero_batea||"—"} · ${s.fecha_solicitud}${s.fotos_antes?.length>0?` · 📷 ${s.fotos_antes.length} foto(s)`:""}`}
@@ -3048,7 +3066,7 @@ export default function App() {
       case "op_central":   return <ViewOperativoCentral operativos={operativosCentrales} loading={loading} onRecargar={cargarDatos} />;
       case "mapa":         return <ViewMapa solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} />;
       case "alertas":      return <ViewAlertas solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} />;
-      case "reportes":     return <ViewReportes solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} operativosCentrales={operativosCentrales} />;
+      case "reportes":     return <ViewReportes solicitudes={solicitudes} desmalezados={desmalezados} caminos={caminos} operativos={operativos} operativosCentrales={operativosCentrales} visitas={visitas} />;
       default: return <div style={{ padding:40, textAlign:"center", color:"#888" }}><div style={{ fontSize:48, marginBottom:16 }}>🚧</div><h2>Módulo en desarrollo</h2></div>;
     }
   };
