@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://5636-200-50-126-98.ngrok-free.app";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -1234,9 +1234,89 @@ function ModalAsignarVisita({ onClose, onConfirmar }) {
   );
 }
 // ── VISTA VISITAS TÉCNICAS ────────────────────────────────────────────────────
+// ── MODAL DETALLE GENÉRICO (desmalezados, caminos, visitas) ─────────────────
+function ModalDetalleGenerico({ tipo, registro, onClose }) {
+  const r = registro;
+  const cfg = {
+    desmalezado: { color:C.verde, emoji:"🌿", titulo:"Desmalezado" },
+    camino:      { color:C.naranja, emoji:"🛤️", titulo:"Arreglo de Camino" },
+    visita:      { color:C.morado, emoji:"🧭", titulo:"Visita Técnica" },
+  }[tipo] || { color:C.azul, emoji:"📄", titulo:"Registro" };
+  const tieneCoords = !!(r.latitud && r.longitud);
+  const fotosAntes = r.fotos_antes || (r.foto_antes ? [r.foto_antes] : []);
+  const fotosDespues = r.fotos_despues || (r.foto_despues ? [r.foto_despues] : []);
+  return (
+    <Modal titulo={`${cfg.emoji} Detalle — ${r.folio}`} color={r.es_emergencia?C.rojo:cfg.color} onClose={onClose}>
+      {r.es_emergencia && <EmergenciaBadge />}
+      <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+        <Badge estado={r.estado} />
+        {r.prioridad && <span style={{ fontSize:12, fontWeight:600, color:cfg.color }}>Prioridad: {r.prioridad}</span>}
+        {typeof r.dias_pendiente === "number" && <span style={{ fontSize:12, color:"#888" }}>{r.dias_pendiente} días pendiente</span>}
+      </div>
+      <SeccionForm titulo="📋 Datos del solicitante" color={cfg.color}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <DetalleFila label="Nombre / Solicitante" valor={r.nombre_solicitante || r.nombre_vecino} />
+          {r.rut && <DetalleFila label="RUT" valor={r.rut} />}
+          {r.telefono !== undefined && <DetalleFila label="Teléfono / Contacto" valor={r.telefono} />}
+          <DetalleFila label="Fecha de solicitud" valor={r.fecha_solicitud} />
+          <DetalleFila label="Dirección" valor={r.direccion} ancho />
+          <DetalleFila label="Georreferencia" ancho valor={tieneCoords ? `${parseFloat(r.latitud).toFixed(6)}, ${parseFloat(r.longitud).toFixed(6)}` : "Sin coordenadas registradas"} />
+          {tieneCoords && (
+            <div style={{ gridColumn:"1/-1" }}>
+              <a href={`https://www.google.com/maps?q=${r.latitud},${r.longitud}`} target="_blank" rel="noreferrer" style={{ fontSize:12, color:cfg.color, fontWeight:600 }}>📍 Ver ubicación en Google Maps →</a>
+            </div>
+          )}
+        </div>
+      </SeccionForm>
+      <SeccionForm titulo="📝 Lo que solicita / Detalle" color={C.naranja}>
+        <div style={{ fontSize:14, color:"#1A2A3A", whiteSpace:"pre-wrap", lineHeight:1.5 }}>
+          {tipo==="camino" ? (r.descripcion_problema || "Sin descripción registrada")
+            : tipo==="visita" ? (r.motivo || "Sin motivo registrado")
+            : (r.descripcion || "Sin descripción registrada")}
+        </div>
+        {tipo==="camino" && r.tipo_camino && <div style={{ fontSize:12, color:"#888", marginTop:8 }}>Tipo de vía: {r.tipo_camino}</div>}
+        {r.observaciones && (
+          <div style={{ fontSize:12, color:"#888", marginTop:8, borderTop:"1px solid #EEE", paddingTop:8 }}>Obs. adicionales: {r.observaciones}</div>
+        )}
+      </SeccionForm>
+      {(r.fecha_inicio || r.fecha_termino || r.fecha_visita || r.responsable) && (
+        <SeccionForm titulo="🔧 Asignación / Ejecución" color={cfg.color}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+            {r.fecha_visita!==undefined ? <DetalleFila label="Fecha de la visita" valor={r.fecha_visita} /> : <>
+              <DetalleFila label="Fecha inicio" valor={r.fecha_inicio} />
+              <DetalleFila label="Fecha término" valor={r.fecha_termino} />
+            </>}
+            <DetalleFila label="Responsable" valor={r.responsable} />
+            {typeof r.dias_uso === "number" && r.dias_uso>0 && <DetalleFila label="Días de uso/trabajo" valor={`${r.dias_uso} días`} />}
+          </div>
+        </SeccionForm>
+      )}
+      {(fotosAntes.length>0 || fotosDespues.length>0) && (
+        <SeccionForm titulo="📷 Fotos" color={cfg.color}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
+            {fotosAntes.map((url,i)=>(
+              <a key={"a"+i} href={url} target="_blank" rel="noreferrer" style={{ position:"relative" }}>
+                <img src={url} alt="antes" style={{ width:"100%", height:100, objectFit:"cover", borderRadius:8, border:"1px solid #DDD" }} />
+              </a>
+            ))}
+            {fotosDespues.map((url,i)=>(
+              <a key={"d"+i} href={url} target="_blank" rel="noreferrer" style={{ position:"relative" }}>
+                <img src={url} alt="despues" style={{ width:"100%", height:100, objectFit:"cover", borderRadius:8, border:`2px solid ${cfg.color}` }} />
+              </a>
+            ))}
+          </div>
+        </SeccionForm>
+      )}
+      <div style={{ display:"flex", justifyContent:"flex-end" }}>
+        <button onClick={onClose} style={{ padding:"10px 24px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:14, cursor:"pointer" }}>Cerrar</button>
+      </div>
+    </Modal>
+  );
+}
 function ViewVisitas({ visitas, onNueva, loading, onRecargar }) {
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [editando, setEditando] = useState(null);
+  const [verDetalle, setVerDetalle] = useState(null);
   const handleAsignar = async (fechaVisita, responsable) => {
     try {
       const res = await fetch(`${API_URL}/api/visitas/${modalAsignarId}/asignar`, {
@@ -1248,20 +1328,32 @@ function ViewVisitas({ visitas, onNueva, loading, onRecargar }) {
       else alert("❌ " + (data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
+  const fechaArchivo = new Date().toLocaleDateString("es-CL").replace(/\//g,"-");
+  const columnasExport = ["Folio","Nombre","Contacto","Dirección","Georreferencia","Lo Solicitado","Estado"];
+  const filasExport = () => visitas.map(v => [
+    v.folio, v.nombre_vecino, v.telefono||"—", v.direccion,
+    (v.latitud&&v.longitud) ? `${parseFloat(v.latitud).toFixed(6)}, ${parseFloat(v.longitud).toFixed(6)}` : "Sin coordenadas",
+    v.motivo || "—", ESTADOS[v.estado]?.label || v.estado
+  ]);
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
         <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🧭 Visitas Técnicas</h1>
-        <button onClick={onNueva} style={{ background:C.morado, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nueva Visita</button>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={()=>exportarListaExcel(filasExport(), columnasExport, `Visitas_Tecnicas_${fechaArchivo}.csv`)} style={{ background:"#E8F5E9", color:C.verde, border:`1px solid ${C.verde}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+          <button onClick={()=>exportarListaPDF(filasExport(), columnasExport, "Visitas Técnicas — Listado", `Visitas_Tecnicas_${fechaArchivo}.pdf`)} style={{ background:"#FFEBEE", color:C.rojo, border:`1px solid ${C.rojo}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📄 PDF</button>
+          <button onClick={onNueva} style={{ background:C.morado, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nueva Visita</button>
+        </div>
       </div>
       <div style={{ background:"#F3E5F5", border:"1px solid #E1BEE7", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.morado, marginBottom:18 }}>
-        💡 Registra aquí las solicitudes que requieren una inspección en terreno antes de crear la solicitud definitiva de batea, desmalezado o arreglo de camino.
+        💡 Registra aquí las solicitudes que requieren una inspección en terreno antes de crear la solicitud definitiva de batea, desmalezado o arreglo de camino. Haz clic en una fila para ver el detalle completo.
       </div>
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
           columnas={["Folio","Vecino","Dirección","Motivo","F. Solicitud","F. Visita","Responsable","Estado","Acción"]}
           filas={visitas.map((v,i) => ({
             key:v.id, critica:!!v.es_emergencia, par:i%2===0,
+            onClick:()=>setVerDetalle(v),
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.morado, fontWeight:600, fontSize:12 }}>{v.folio}</span>,
               <span style={{ fontSize:12 }}>{v.nombre_vecino}
@@ -1273,13 +1365,15 @@ function ViewVisitas({ visitas, onNueva, loading, onRecargar }) {
               <span style={{ fontSize:12, color:C.morado, fontWeight:600 }}>{v.fecha_visita||"—"}</span>,
               <span style={{ fontSize:12, color:"#555" }}>{v.responsable||"—"}</span>,
               <Badge estado={v.estado} small />,
-              <BotonesAccion
-                id={v.id} endpoint="visitas" estado={v.estado} color={C.morado}
-                labelAsignar="🧭 Agendar Visita"
-                onAsignar={()=>setModalAsignarId(v.id)}
-                onEditar={()=>setEditando(v)}
-                onRecargar={onRecargar}
-              />
+              <div onClick={e=>e.stopPropagation()}>
+                <BotonesAccion
+                  id={v.id} endpoint="visitas" estado={v.estado} color={C.morado}
+                  labelAsignar="🧭 Agendar Visita"
+                  onAsignar={()=>setModalAsignarId(v.id)}
+                  onEditar={()=>setEditando(v)}
+                  onRecargar={onRecargar}
+                />
+              </div>
             ]
           }))}
           total={visitas.length}
@@ -1292,6 +1386,9 @@ function ViewVisitas({ visitas, onNueva, loading, onRecargar }) {
         <ModalEditar tipo="visita" registro={editando}
           onClose={()=>setEditando(null)}
           onGuardar={()=>{ setEditando(null); onRecargar(); }} />
+      )}
+      {verDetalle && (
+        <ModalDetalleGenerico tipo="visita" registro={verDetalle} onClose={()=>setVerDetalle(null)} />
       )}
     </div>
   );
@@ -1634,6 +1731,14 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [modalCerrarId, setModalCerrarId] = useState(null);
   const [editando, setEditando] = useState(null);
+  const [verDetalle, setVerDetalle] = useState(null);
+  const fechaArchivo = new Date().toLocaleDateString("es-CL").replace(/\//g,"-");
+  const columnasExport = ["Folio","Nombre","Contacto","Dirección","Georreferencia","Lo Solicitado","Estado"];
+  const filasExport = () => desmalezados.map(d => [
+    d.folio, d.nombre_solicitante, d.telefono||"—", d.direccion,
+    (d.latitud&&d.longitud) ? `${parseFloat(d.latitud).toFixed(6)}, ${parseFloat(d.longitud).toFixed(6)}` : "Sin coordenadas",
+    d.descripcion || d.observaciones || "—", ESTADOS[d.estado]?.label || d.estado
+  ]);
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
       const res = await fetch(`${API_URL}/api/desmalezados/${modalAsignarId}/asignar`, {
@@ -1660,13 +1765,21 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
         <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🌿 Desmalezados</h1>
-        <button onClick={onNuevo} style={{ background:C.verde, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nuevo Desmalezado</button>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={()=>exportarListaExcel(filasExport(), columnasExport, `Desmalezados_${fechaArchivo}.csv`)} style={{ background:"#E8F5E9", color:C.verde, border:`1px solid ${C.verde}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+          <button onClick={()=>exportarListaPDF(filasExport(), columnasExport, "Desmalezados — Listado", `Desmalezados_${fechaArchivo}.pdf`)} style={{ background:"#FFEBEE", color:C.rojo, border:`1px solid ${C.rojo}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📄 PDF</button>
+          <button onClick={onNuevo} style={{ background:C.verde, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nuevo Desmalezado</button>
+        </div>
+      </div>
+      <div style={{ background:"#E8F5E9", border:"1px solid #C8E6C9", borderRadius:8, padding:"8px 14px", fontSize:12, color:C.verde, marginBottom:16 }}>
+        💡 Haz clic en cualquier fila para ver el detalle completo.
       </div>
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
           columnas={["Folio","Solicitante","Dirección","Estado","Inicio","Término","Días","Responsable","Fotos","Acción"]}
           filas={desmalezados.map((d,i) => ({
             key:d.id, critica:!!d.es_emergencia, par:i%2===0,
+            onClick:()=>setVerDetalle(d),
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.verde, fontWeight:600, fontSize:12 }}>{d.folio}</span>,
               <span style={{ fontSize:12 }}>{d.nombre_solicitante}
@@ -1679,17 +1792,19 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
               <span style={{ fontSize:12, color:C.rojo, fontWeight:600 }}>{d.fecha_termino||"—"}</span>,
               <span style={{ fontWeight:700, color:d.dias_uso>0?C.verde:"#888" }}>{d.dias_uso>0?`${d.dias_uso}d`:"—"}</span>,
               <span style={{ fontSize:12, color:"#555" }}>{d.responsable||"—"}</span>,
-              <div style={{ display:"flex", gap:4 }}>
+              <div style={{ display:"flex", gap:4 }} onClick={e=>e.stopPropagation()}>
                 {d.foto_antes?<a href={d.foto_antes} target="_blank" rel="noreferrer"><img src={d.foto_antes} alt="antes" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
                 {d.foto_despues?<a href={d.foto_despues} target="_blank" rel="noreferrer"><img src={d.foto_despues} alt="dsp" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:`2px solid ${C.verde}` }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
               </div>,
-              <BotonesAccion
-                id={d.id} endpoint="desmalezados" estado={d.estado} color={C.verde}
-                labelAsignar="🌿 Asignar"
-                onAsignar={()=>setModalAsignarId(d.id)}
-                onEditar={()=>setEditando(d)}
-                onRecargar={onRecargar}
-              />
+              <div onClick={e=>e.stopPropagation()}>
+                <BotonesAccion
+                  id={d.id} endpoint="desmalezados" estado={d.estado} color={C.verde}
+                  labelAsignar="🌿 Asignar"
+                  onAsignar={()=>setModalAsignarId(d.id)}
+                  onEditar={()=>setEditando(d)}
+                  onRecargar={onRecargar}
+                />
+              </div>
             ]
           }))}
           total={desmalezados.length}
@@ -1708,6 +1823,9 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
           onClose={()=>setEditando(null)}
           onGuardar={()=>{ setEditando(null); onRecargar(); }} />
       )}
+      {verDetalle && (
+        <ModalDetalleGenerico tipo="desmalezado" registro={verDetalle} onClose={()=>setVerDetalle(null)} />
+      )}
     </div>
   );
 }
@@ -1716,6 +1834,14 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
   const [modalAsignarId, setModalAsignarId] = useState(null);
   const [modalCerrarId, setModalCerrarId] = useState(null);
   const [editando, setEditando] = useState(null);
+  const [verDetalle, setVerDetalle] = useState(null);
+  const fechaArchivo = new Date().toLocaleDateString("es-CL").replace(/\//g,"-");
+  const columnasExport = ["Folio","Nombre","Contacto","Dirección","Georreferencia","Lo Solicitado","Estado"];
+  const filasExport = () => caminos.map(c => [
+    c.folio, c.nombre_solicitante, c.telefono||"—", c.direccion,
+    (c.latitud&&c.longitud) ? `${parseFloat(c.latitud).toFixed(6)}, ${parseFloat(c.longitud).toFixed(6)}` : "Sin coordenadas",
+    c.descripcion_problema || "—", ESTADOS[c.estado]?.label || c.estado
+  ]);
   const handleAsignar = async (fechaInicio, diasUso, responsable) => {
     try {
       const res = await fetch(`${API_URL}/api/caminos/${modalAsignarId}/asignar`, {
@@ -1742,13 +1868,21 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
         <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🛤️ Arreglo de Caminos</h1>
-        <button onClick={onNuevo} style={{ background:C.naranja, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nuevo Camino</button>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={()=>exportarListaExcel(filasExport(), columnasExport, `Arreglo_Caminos_${fechaArchivo}.csv`)} style={{ background:"#E8F5E9", color:C.verde, border:`1px solid ${C.verde}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+          <button onClick={()=>exportarListaPDF(filasExport(), columnasExport, "Arreglo de Caminos — Listado", `Arreglo_Caminos_${fechaArchivo}.pdf`)} style={{ background:"#FFEBEE", color:C.rojo, border:`1px solid ${C.rojo}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📄 PDF</button>
+          <button onClick={onNuevo} style={{ background:C.naranja, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nuevo Camino</button>
+        </div>
+      </div>
+      <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"8px 14px", fontSize:12, color:C.naranja, marginBottom:16 }}>
+        💡 Haz clic en cualquier fila para ver el detalle completo.
       </div>
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
           columnas={["Folio","Solicitante","Dirección","Tipo","Prioridad","Estado","Inicio","Término","Responsable","Fotos","Acción"]}
           filas={caminos.map((c,i) => ({
             key:c.id, critica:c.prioridad==="urgente"||!!c.es_emergencia, par:i%2===0,
+            onClick:()=>setVerDetalle(c),
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.naranja, fontWeight:600, fontSize:12 }}>{c.folio}</span>,
               <span style={{ fontSize:12 }}>{c.nombre_solicitante}
@@ -1762,17 +1896,19 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
               <span style={{ fontSize:12, color:C.azul, fontWeight:600 }}>{c.fecha_inicio||"—"}</span>,
               <span style={{ fontSize:12, color:C.rojo, fontWeight:600 }}>{c.fecha_termino||"—"}</span>,
               <span style={{ fontSize:12, color:"#555" }}>{c.responsable||"—"}</span>,
-              <div style={{ display:"flex", gap:4 }}>
+              <div style={{ display:"flex", gap:4 }} onClick={e=>e.stopPropagation()}>
                 {c.foto_antes?<a href={c.foto_antes} target="_blank" rel="noreferrer"><img src={c.foto_antes} alt="antes" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
                 {c.foto_despues?<a href={c.foto_despues} target="_blank" rel="noreferrer"><img src={c.foto_despues} alt="dsp" style={{ width:30,height:30,objectFit:"cover",borderRadius:4,border:`2px solid ${C.verde}` }} /></a>:<span style={{ fontSize:10, color:"#CCC" }}>—</span>}
               </div>,
-              <BotonesAccion
-                id={c.id} endpoint="caminos" estado={c.estado} color={C.naranja}
-                labelAsignar="🛤️ Asignar"
-                onAsignar={()=>setModalAsignarId(c.id)}
-                onEditar={()=>setEditando(c)}
-                onRecargar={onRecargar}
-              />
+              <div onClick={e=>e.stopPropagation()}>
+                <BotonesAccion
+                  id={c.id} endpoint="caminos" estado={c.estado} color={C.naranja}
+                  labelAsignar="🛤️ Asignar"
+                  onAsignar={()=>setModalAsignarId(c.id)}
+                  onEditar={()=>setEditando(c)}
+                  onRecargar={onRecargar}
+                />
+              </div>
             ]
           }))}
           total={caminos.length}
@@ -1790,6 +1926,9 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
         <ModalEditar tipo="camino" registro={editando}
           onClose={()=>setEditando(null)}
           onGuardar={()=>{ setEditando(null); onRecargar(); }} />
+      )}
+      {verDetalle && (
+        <ModalDetalleGenerico tipo="camino" registro={verDetalle} onClose={()=>setVerDetalle(null)} />
       )}
     </div>
   );
