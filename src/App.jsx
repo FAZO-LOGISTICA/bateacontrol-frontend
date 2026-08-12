@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://1ba2-200-50-126-98.ngrok-free.app";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -724,7 +724,7 @@ function TablaGenerica({ columnas, filas, total }) {
             {filas.length===0 ? (
               <tr><td colSpan={columnas.length} style={{ padding:40, textAlign:"center", color:"#888", fontSize:14 }}>No hay registros</td></tr>
             ) : filas.map(fila => (
-              <tr key={fila.key} style={{ background:fila.critica?"#FFFAFA":fila.par?"#FFF":"#FAFAFA", borderBottom:"1px solid #F0F0F0", borderLeft:fila.critica?`3px solid ${C.rojo}`:"3px solid transparent" }}>
+              <tr key={fila.key} onClick={fila.onClick} style={{ background:fila.critica?"#FFFAFA":fila.par?"#FFF":"#FAFAFA", borderBottom:"1px solid #F0F0F0", borderLeft:fila.critica?`3px solid ${C.rojo}`:"3px solid transparent", cursor:fila.onClick?"pointer":"default" }}>
                 {fila.celdas.map((celda,i) => <td key={i} style={{ padding:"9px 14px" }}>{celda}</td>)}
               </tr>
             ))}
@@ -857,25 +857,189 @@ function ViewDashboard({ kpis, stats }) {
     </div>
   );
 }
+// ── MODAL DETALLE (solo lectura, se abre al pinchar una solicitud) ──────────
+function DetalleFila({ label, valor, ancho }) {
+  return (
+    <div style={{ gridColumn: ancho ? "1/-1" : "auto" }}>
+      <div style={{ fontSize:11, color:"#888", fontWeight:600, textTransform:"uppercase", letterSpacing:.3, marginBottom:3 }}>{label}</div>
+      <div style={{ fontSize:14, color:"#1A2A3A", whiteSpace:"pre-wrap" }}>{valor || "—"}</div>
+    </div>
+  );
+}
+function ModalDetalleSolicitud({ solicitud, onClose }) {
+  const s = solicitud;
+  const tieneCoords = s.latitud && s.longitud;
+  return (
+    <Modal titulo={`🗑️ Detalle de Solicitud — ${s.folio}`} color={s.es_emergencia?C.rojo:C.azul} onClose={onClose}>
+      {s.es_emergencia && <EmergenciaBadge />}
+      <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+        <Badge estado={s.estado} />
+        <Badge alerta={s.nivel_alerta} />
+        <span style={{ fontSize:12, color:"#888" }}>{s.dias_pendiente} días pendiente</span>
+      </div>
+      <SeccionForm titulo="📋 Datos del Vecino" color={C.azul}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <DetalleFila label="Nombre completo" valor={s.nombre_vecino} />
+          <DetalleFila label="RUT" valor={s.rut} />
+          <DetalleFila label="Teléfono / Contacto" valor={s.telefono} />
+          <DetalleFila label="Fecha de solicitud" valor={s.fecha_solicitud} />
+          <DetalleFila label="Dirección" valor={s.direccion} ancho />
+          <DetalleFila label="Georreferencia" ancho valor={tieneCoords ? `${parseFloat(s.latitud).toFixed(6)}, ${parseFloat(s.longitud).toFixed(6)}` : "Sin coordenadas registradas"} />
+          {tieneCoords && (
+            <div style={{ gridColumn:"1/-1" }}>
+              <a href={`https://www.google.com/maps?q=${s.latitud},${s.longitud}`} target="_blank" rel="noreferrer" style={{ fontSize:12, color:C.azul, fontWeight:600 }}>📍 Ver ubicación en Google Maps →</a>
+            </div>
+          )}
+        </div>
+      </SeccionForm>
+      <SeccionForm titulo="📝 Lo que solicita / Observaciones" color={C.naranja}>
+        <div style={{ fontSize:14, color:"#1A2A3A", whiteSpace:"pre-wrap", lineHeight:1.5 }}>{s.observaciones || "Sin observaciones registradas — solicita batea comunitaria."}</div>
+      </SeccionForm>
+      {(s.tuvo_batea_antes || s.numero_batea || s.grupo_id) && (
+        <SeccionForm titulo="📚 Historial / Asignación" color={C.morado}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+            {s.numero_batea && <DetalleFila label="N° Batea asignada" valor={s.numero_batea} />}
+            {s.grupo_id && <DetalleFila label="Grupo territorial" valor={s.grupo_id} />}
+            {(s.historial_previo||[]).length>0 && (
+              <div style={{ gridColumn:"1/-1" }}>
+                <div style={{ fontSize:11, color:"#888", fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Bateas anteriores en esta dirección</div>
+                {s.historial_previo.map((h,i)=>(
+                  <div key={i} style={{ fontSize:12, color:"#555", padding:"4px 0", borderBottom:"1px solid #F0F0F0" }}>
+                    Batea {h.numero_batea} — {h.fecha_asignacion} ({h.dias_uso} días de uso)
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </SeccionForm>
+      )}
+      {(s.fotos_antes||[]).length>0 && (
+        <SeccionForm titulo="📷 Fotos" color={C.azul}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
+            {s.fotos_antes.map((url,i)=>(
+              <a key={i} href={url} target="_blank" rel="noreferrer">
+                <img src={url} alt="foto" style={{ width:"100%", height:100, objectFit:"cover", borderRadius:8, border:"1px solid #DDD" }} />
+              </a>
+            ))}
+          </div>
+        </SeccionForm>
+      )}
+      <div style={{ display:"flex", justifyContent:"flex-end" }}>
+        <button onClick={onClose} style={{ padding:"10px 24px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:14, cursor:"pointer" }}>Cerrar</button>
+      </div>
+    </Modal>
+  );
+}
+// ── EXPORTAR LISTA A EXCEL (CSV) Y PDF (para llevar en papel a terreno) ──────
+function exportarListaExcel(filas, columnas, nombreArchivo) {
+  const escapar = (v) => {
+    const s = (v===null||v===undefined) ? "" : String(v);
+    if (/[",\n;]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+    return s;
+  };
+  const encabezado = columnas.map(escapar).join(";");
+  const filasCsv = filas.map(f => f.map(escapar).join(";"));
+  const contenido = "﻿" + [encabezado, ...filasCsv].join("\r\n");
+  const blob = new Blob([contenido], { type:"text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nombreArchivo;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function exportarListaPDF(filas, columnas, titulo, nombreArchivo) {
+  const hoy = new Date().toLocaleDateString("es-CL", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+  const filasHtml = filas.map(f => `<tr>${f.map(v=>`<td>${(v===null||v===undefined||v==="")?"—":String(v).replace(/</g,"&lt;")}</td>`).join("")}</tr>`).join("");
+  const encabezadoHtml = columnas.map(c=>`<th>${c}</th>`).join("");
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${titulo}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1a1a1a;background:#FFF}
+.page{padding:24px}
+.header{border-bottom:3px solid #1565C0;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+.titulo{font-size:19px;font-weight:bold;color:#1565C0}
+.subtitulo{font-size:12px;color:#555;margin-top:3px}
+table{width:100%;border-collapse:collapse}
+th{background:#F0F4F8;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#333;border-bottom:2px solid #DDD;white-space:nowrap}
+td{padding:7px 10px;font-size:11px;border-bottom:1px solid #EEE;vertical-align:top}
+tr:nth-child(even) td{background:#FAFBFC}
+.toolbar{position:sticky;top:0;background:#FFF;padding:14px;text-align:center;border-bottom:1px solid #DDD;margin-bottom:10px}
+#btn-pdf{background:#1565C0;color:#FFF;border:none;padding:10px 26px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+.footer{margin-top:18px;padding-top:10px;border-top:1px solid #DDD;font-size:10px;color:#999;text-align:center}
+@media print{.toolbar{display:none}}
+</style></head><body>
+<div class="toolbar">
+  <button id="btn-pdf" onclick="descargarPDF()">⬇️ Descargar PDF</button>
+  <div id="estado-btn" style="font-size:12px;color:#888;margin-top:6px;"></div>
+</div>
+<div id="contenido-pdf">
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="titulo">${titulo}</div>
+      <div class="subtitulo">BateaControl — Sistema Municipal · Generado el ${hoy}</div>
+    </div>
+    <div class="subtitulo">${filas.length} registro(s)</div>
+  </div>
+  <table><thead><tr>${encabezadoHtml}</tr></thead><tbody>${filasHtml}</tbody></table>
+  <div class="footer">BateaControl — Sistema Municipal de Gestión Territorial</div>
+</div>
+</div>
+<script>
+function descargarPDF(){
+  const btn=document.getElementById('btn-pdf'); const estado=document.getElementById('estado-btn');
+  btn.disabled=true; btn.textContent='⏳ Generando PDF...';
+  const elemento=document.getElementById('contenido-pdf');
+  html2pdf().set({
+    margin:[8,8,8,8], filename:'${nombreArchivo}',
+    image:{ type:'jpeg', quality:0.92 },
+    html2canvas:{ scale:2, useCORS:true, logging:false },
+    jsPDF:{ unit:'mm', format:'a4', orientation:'landscape' }
+  }).from(elemento).save().then(()=>{
+    btn.disabled=false; btn.textContent='⬇️ Descargar PDF';
+    estado.textContent='✅ PDF descargado correctamente';
+    setTimeout(()=>{estado.textContent='';},4000);
+  });
+}
+</script>
+</body></html>`;
+  const ventana = window.open("", "_blank", "width=1000,height=800,scrollbars=yes");
+  if (ventana) { ventana.document.write(html); ventana.document.close(); }
+}
 function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering, onRecargar }) {
   const [filtro, setFiltro] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState(null); // registro seleccionado para editar
+  const [verDetalle, setVerDetalle] = useState(null); // registro seleccionado para ver detalle
   const filtradas = solicitudes.filter(s => {
     const mE = filtro==="todos"||s.estado===filtro;
     const mB = busqueda===""||[s.nombre_vecino,s.direccion,s.folio,s.rut].some(v=>(v||"").toLowerCase().includes(busqueda.toLowerCase()));
     return mE&&mB;
   });
+  const columnasExport = ["Folio","Nombre","Contacto","Dirección","Georreferencia","Lo Solicitado","Estado"];
+  const filasExport = () => filtradas.map(s => [
+    s.folio, s.nombre_vecino, s.telefono||"—", s.direccion,
+    (s.latitud&&s.longitud) ? `${parseFloat(s.latitud).toFixed(6)}, ${parseFloat(s.longitud).toFixed(6)}` : "Sin coordenadas",
+    s.observaciones || "Solicita batea comunitaria",
+    ESTADOS[s.estado]?.label || s.estado
+  ]);
+  const fechaArchivo = new Date().toLocaleDateString("es-CL").replace(/\//g,"-");
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
         <h1 style={{ margin:0, fontSize:22, fontWeight:700, color:"#1A2A3A" }}>🗑️ Solicitudes de Batea</h1>
         <div style={{ display:"flex", gap:10 }}>
+          <button onClick={()=>exportarListaExcel(filasExport(), columnasExport, `Solicitudes_Bateas_${fechaArchivo}.csv`)} style={{ background:"#E8F5E9", color:C.verde, border:`1px solid ${C.verde}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+          <button onClick={()=>exportarListaPDF(filasExport(), columnasExport, "Solicitudes de Batea — Listado", `Solicitudes_Bateas_${fechaArchivo}.pdf`)} style={{ background:"#FFEBEE", color:C.rojo, border:`1px solid ${C.rojo}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📄 PDF</button>
           <button onClick={onAsignarBatea} disabled={clustering} style={{ background:clustering?"#888":C.azul, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:clustering?"not-allowed":"pointer" }}>
             {clustering?"⏳ Procesando...":"🗑️ ASIGNAR BATEA"}
           </button>
           <button onClick={onNueva} style={{ background:C.azulS, color:C.azul, border:`1px solid ${C.azul}33`, borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nueva</button>
         </div>
+      </div>
+      <div style={{ background:"#F0F7FF", border:"1px solid #BBDEFB", borderRadius:8, padding:"8px 14px", fontSize:12, color:C.azul, marginBottom:16 }}>
+        💡 Haz clic en cualquier fila para ver el detalle completo de la solicitud (lo que pide el vecino, contacto, ubicación, etc).
       </div>
       <div style={{ display:"flex", gap:12, marginBottom:20 }}>
         <input placeholder="🔍 Buscar..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{ flex:1, padding:"10px 14px", borderRadius:8, border:"1px solid #DDD", fontSize:14, outline:"none" }} />
@@ -889,6 +1053,7 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
           columnas={["Folio","Vecino","Dirección","Coords","Estado","Alerta","Días","Fotos","Acción"]}
           filas={filtradas.map((s,i) => ({
             key:s.id, critica:s.nivel_alerta==="critica"||s.es_emergencia, par:i%2===0,
+            onClick:()=>setVerDetalle(s),
             celdas:[
               <span style={{ fontFamily:"monospace", color:C.azul, fontWeight:600, fontSize:12 }}>{s.folio}</span>,
               <span>{s.nombre_vecino}
@@ -901,7 +1066,7 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
               <Badge estado={s.estado} small />,
               <Badge alerta={s.nivel_alerta} small />,
               <span style={{ fontWeight:700, color:s.dias_pendiente>=20?C.rojo:s.dias_pendiente>=11?C.naranja:C.verde }}>{s.dias_pendiente}d</span>,
-              <div style={{ display:"flex", gap:4 }}>
+              <div style={{ display:"flex", gap:4 }} onClick={e=>e.stopPropagation()}>
                 {(s.fotos_antes||[]).slice(0,3).map((url,i)=>(
                   <a key={i} href={url} target="_blank" rel="noreferrer">
                     <img src={url} alt="foto" style={{ width:28,height:28,objectFit:"cover",borderRadius:4,border:"1px solid #DDD" }} />
@@ -909,13 +1074,15 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
                 ))}
                 {!(s.fotos_antes?.length) && <span style={{ fontSize:11, color:"#CCC" }}>Sin fotos</span>}
               </div>,
-              <BotonesAccion
-                id={s.id} endpoint="solicitudes" estado={s.estado} color={C.azul}
-                labelAsignar="🗑️ Asignar"
-                onAsignar={onAsignarBatea}
-                onEditar={()=>setEditando(s)}
-                onRecargar={onRecargar}
-              />
+              <div onClick={e=>e.stopPropagation()}>
+                <BotonesAccion
+                  id={s.id} endpoint="solicitudes" estado={s.estado} color={C.azul}
+                  labelAsignar="🗑️ Asignar"
+                  onAsignar={onAsignarBatea}
+                  onEditar={()=>setEditando(s)}
+                  onRecargar={onRecargar}
+                />
+              </div>
             ]
           }))}
           total={solicitudes.length}
@@ -925,6 +1092,9 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
         <ModalEditar tipo="batea" registro={editando}
           onClose={()=>setEditando(null)}
           onGuardar={()=>{ setEditando(null); window.location.reload(); }} />
+      )}
+      {verDetalle && (
+        <ModalDetalleSolicitud solicitud={verDetalle} onClose={()=>setVerDetalle(null)} />
       )}
     </div>
   );
