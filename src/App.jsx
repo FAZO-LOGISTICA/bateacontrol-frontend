@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://9183-200-50-126-98.ngrok-free.app";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -1409,9 +1409,9 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
       const body = tipo === "batea"
         ? { nombre_vecino:form.nombre_vecino, rut:form.rut, direccion:form.direccion, telefono:form.telefono, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, observaciones:form.observaciones, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
         : tipo === "desmalezado"
-        ? { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
+        ? { nombre_solicitante:form.nombre_solicitante, rut:form.rut, telefono:form.telefono, es_recordatorio:form.es_recordatorio, direccion:form.direccion, descripcion:form.descripcion, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
         : tipo === "camino"
-        ? { nombre_solicitante:form.nombre_solicitante, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.es_emergencia?"urgente":form.prioridad, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
+        ? { nombre_solicitante:form.nombre_solicitante, rut:form.rut, telefono:form.telefono, es_recordatorio:form.es_recordatorio, direccion:form.direccion, tipo_camino:form.tipo_camino, descripcion_problema:form.descripcion_problema, prioridad:form.es_emergencia?"urgente":form.prioridad, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, fotos_antes:fotosAntes, es_emergencia:!!form.es_emergencia }
         : { nombre_vecino:form.nombre_vecino, rut:form.rut, telefono:form.telefono, direccion:form.direccion, motivo:form.motivo, observaciones:form.observaciones, latitud:parseFloat(form.latitud)||0, longitud:parseFloat(form.longitud)||0, es_emergencia:!!form.es_emergencia };
       const res = await fetch(`${API_URL}/api/${endpoint}/${registro.id}/editar`, {
         method:"PUT", headers:{"Content-Type":"application/json"},
@@ -1468,6 +1468,12 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
               <Field label="Nombre / Referencia">
                 <input style={inp} value={form.nombre_solicitante||""} onChange={e=>set("nombre_solicitante",e.target.value)} placeholder="Nombre o referencia" />
               </Field>
+              <Field label="RUT">
+                <input style={inp} value={form.rut||""} onChange={e=>set("rut",e.target.value)} placeholder="12.345.678-9" />
+              </Field>
+              <Field label="Teléfono">
+                <input style={inp} value={form.telefono||""} onChange={e=>set("telefono",e.target.value)} placeholder="+56912345678" />
+              </Field>
               <Field label="Tipo">
                 <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 0" }}>
                   <input type="checkbox" checked={form.es_recordatorio||false} onChange={e=>set("es_recordatorio",e.target.checked)} />
@@ -1492,6 +1498,12 @@ function ModalEditar({ tipo, registro, onClose, onGuardar }) {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               <Field label="Nombre / Referencia">
                 <input style={inp} value={form.nombre_solicitante||""} onChange={e=>set("nombre_solicitante",e.target.value)} />
+              </Field>
+              <Field label="RUT">
+                <input style={inp} value={form.rut||""} onChange={e=>set("rut",e.target.value)} placeholder="12.345.678-9" />
+              </Field>
+              <Field label="Teléfono">
+                <input style={inp} value={form.telefono||""} onChange={e=>set("telefono",e.target.value)} placeholder="+56912345678" />
               </Field>
               <Field label="Prioridad">
                 <select style={inp} value={form.prioridad||"normal"} onChange={e=>set("prioridad",e.target.value)} disabled={!!form.es_emergencia}>
