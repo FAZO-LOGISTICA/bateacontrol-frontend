@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://8fd2-200-50-126-98.ngrok-free.app";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -1214,7 +1214,7 @@ function ModalAsignarVisita({ onClose, onConfirmar }) {
           </div>
           <div>
             <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>📅 Fecha de la visita</label>
-            <input type="date" value={fechaVisita} min={hoy}
+            <input type="date" value={fechaVisita}
               onChange={e=>setFechaVisita(e.target.value)}
               style={{ padding:"10px 14px", borderRadius:8, border:`2px solid ${C.morado}`, fontSize:14, outline:"none", color:C.morado, fontWeight:600, cursor:"pointer" }} />
           </div>
@@ -1632,7 +1632,7 @@ function ModalAsignarServicio({ titulo, color, onClose, onConfirmar }) {
           <div>
             <label style={{ fontSize:13, fontWeight:600, color:"#333", display:"block", marginBottom:6 }}>📅 Fecha de inicio</label>
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <input type="date" value={fechaInicio} min={hoy}
+              <input type="date" value={fechaInicio}
                 onChange={e=>setFechaInicio(e.target.value)}
                 style={{ padding:"10px 14px", borderRadius:8, border:`2px solid ${color}`, fontSize:14, outline:"none", color, fontWeight:600, cursor:"pointer" }} />
               <span style={{ fontSize:12, color:"#666" }}>
@@ -2402,7 +2402,6 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
               <input
                 type="date"
                 value={fechaInicio}
-                min={hoy}
                 onChange={e => setFechaInicio(e.target.value)}
                 style={{
                   padding:"10px 14px", borderRadius:8, border:`2px solid ${C.azul}`,
