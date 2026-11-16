@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://edf3-200-50-126-98.ngrok-free.app";
+const API_URL = "https://proposition-sage-individuals-conduct.trycloudflare.com";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -1032,7 +1032,7 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={()=>exportarListaExcel(filasExport(), columnasExport, `Solicitudes_Bateas_${fechaArchivo}.csv`)} style={{ background:"#E8F5E9", color:C.verde, border:`1px solid ${C.verde}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
           <button onClick={()=>exportarListaPDF(filasExport(), columnasExport, "Solicitudes de Batea — Listado", `Solicitudes_Bateas_${fechaArchivo}.pdf`)} style={{ background:"#FFEBEE", color:C.rojo, border:`1px solid ${C.rojo}33`, borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:600, cursor:"pointer" }}>📄 PDF</button>
-          <button onClick={onAsignarBatea} disabled={clustering} style={{ background:clustering?"#888":C.azul, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:clustering?"not-allowed":"pointer" }}>
+          <button onClick={()=>onAsignarBatea()} disabled={clustering} style={{ background:clustering?"#888":C.azul, color:"#FFF", border:"none", borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:clustering?"not-allowed":"pointer" }}>
             {clustering?"⏳ Procesando...":"🗑️ ASIGNAR BATEA"}
           </button>
           <button onClick={onNueva} style={{ background:C.azulS, color:C.azul, border:`1px solid ${C.azul}33`, borderRadius:8, padding:"10px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>+ Nueva</button>
@@ -1077,8 +1077,8 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
               <div onClick={e=>e.stopPropagation()}>
                 <BotonesAccion
                   id={s.id} endpoint="solicitudes" estado={s.estado} color={C.azul}
-                  labelAsignar="🗑️ Asignar"
-                  onAsignar={onAsignarBatea}
+                  labelAsignar="🗑️ Solo esta"
+                  onAsignar={()=>onAsignarBatea([s.id])}
                   onEditar={()=>setEditando(s)}
                   onRecargar={onRecargar}
                 />
@@ -2321,8 +2321,9 @@ function ModalClusteringResultado({ resultado, onClose }) {
   );
 }
 // ── MODAL ASIGNAR BATEA CON FECHA INICIO Y DÍAS EDITABLES ────────────────────
-function ModalAsignarBatea({ onClose, onConfirmar }) {
+function ModalAsignarBatea({ onClose, onConfirmar, ids }) {
   const hoy = new Date().toISOString().split("T")[0];
+  const puntual = Array.isArray(ids) && ids.length > 0;
   const [fechaInicio, setFechaInicio] = useState(hoy);
   const [diasUso, setDiasUso] = useState(7);
   const [preview, setPreview] = useState(null);
@@ -2331,7 +2332,7 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
   useEffect(() => {
     const cargar = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/clustering/preview?radio_metros=100`);
+        const res = await fetch(`${API_URL}/api/clustering/preview?radio_metros=100${puntual?`&ids=${ids.join(",")}`:""}`);
         if (res.ok) { const d = await res.json(); setPreview(d); }
       } catch {}
       setCargando(false);
@@ -2354,8 +2355,8 @@ function ModalAsignarBatea({ onClose, onConfirmar }) {
         {/* Header */}
         <div style={{ padding:"20px 24px", background:C.azul, borderRadius:"16px 16px 0 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
-            <h2 style={{ margin:0, color:"#FFF", fontSize:17, fontWeight:700 }}>🗑️ Asignar Bateas Comunitarias</h2>
-            <p style={{ margin:"2px 0 0", color:"#90CAF9", fontSize:13 }}>Configure fechas y días de uso — se informará a los vecinos</p>
+            <h2 style={{ margin:0, color:"#FFF", fontSize:17, fontWeight:700 }}>{puntual ? "🗑️ Asignar Batea — Caso especial" : "🗑️ Asignar Bateas Comunitarias"}</h2>
+            <p style={{ margin:"2px 0 0", color:"#90CAF9", fontSize:13 }}>{puntual ? "Solo se asigna la solicitud elegida; las demás pendientes no se tocan" : "Configure fechas y días de uso — se informará a los vecinos"}</p>
           </div>
           <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#FFF", width:34, height:34, borderRadius:"50%", cursor:"pointer", fontSize:20 }}>×</button>
         </div>
@@ -3345,21 +3346,22 @@ export default function App() {
     setLoading(false);
   }, []);
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
-  const handleAsignarBatea = () => setModalAsignar(true);
+  const [idsAsignar, setIdsAsignar] = useState(null); // null = todas las pendientes; [ids] = caso especial
+  const handleAsignarBatea = (ids) => { setIdsAsignar(Array.isArray(ids) ? ids : null); setModalAsignar(true); };
   const handleConfirmarAsignacion = useCallback(async (diasUso, fechaInicio) => {
     setModalAsignar(false);
     setClustering(true);
     try {
       const res = await fetch(`${API_URL}/api/clustering/ejecutar`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ radio_metros:100, dias_uso:diasUso, fecha_inicio:fechaInicio })
+        body: JSON.stringify({ radio_metros:100, dias_uso:diasUso, fecha_inicio:fechaInicio, solicitud_ids: idsAsignar })
       });
       const data = await res.json();
       if (res.ok) { setResultadoClustering(data); await cargarDatos(); }
       else alert("❌ Error: "+(data.detail||"Error desconocido"));
     } catch { alert("❌ Error de conexión"); }
     setClustering(false);
-  }, [cargarDatos]);
+  }, [cargarDatos, idsAsignar]);
   const [vecinoPrelleno, setVecinoPrelleno] = useState(null);
   const handleGuardar = async (data) => {
     setModalActivo(null);
@@ -3399,7 +3401,7 @@ export default function App() {
       {modalActivo==="batea"       && <ModalBatea       onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
       {modalActivo==="desmalezado" && <ModalDesmalezado onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
       {modalActivo==="camino"      && <ModalCamino      onClose={()=>setModalActivo(null)} onGuardar={handleGuardar} vecinoPrelleno={vecinoPrelleno} />}
-      {modalAsignar && <ModalAsignarBatea onClose={()=>setModalAsignar(false)} onConfirmar={handleConfirmarAsignacion} />}
+      {modalAsignar && <ModalAsignarBatea ids={idsAsignar} onClose={()=>setModalAsignar(false)} onConfirmar={handleConfirmarAsignacion} />}
       {resultadoClustering && <ModalClusteringResultado resultado={resultadoClustering} onClose={()=>setResultadoClustering(null)} />}
     </div>
   );
