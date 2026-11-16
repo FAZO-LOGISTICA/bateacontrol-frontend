@@ -2468,8 +2468,19 @@ function ModalAsignarBatea({ onClose, onConfirmar, ids }) {
             </div>
           </div>
           <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.naranja }}>
-            ⚠️ El sistema priorizará automáticamente las solicitudes más antiguas y críticas — y siempre primero las marcadas como Emergencia. Las bateas se asignarán solo a vecinos sin batea activa cercana.
+            {puntual
+              ? "⚠️ Caso especial: se asignará únicamente la solicitud elegida. Las demás solicitudes pendientes (incluidas las más antiguas) no se modifican."
+              : "⚠️ El sistema priorizará automáticamente las solicitudes más antiguas y críticas — y siempre primero las marcadas como Emergencia. Las bateas se asignarán solo a vecinos sin batea activa cercana."}
           </div>
+          {!cargando && (!preview || preview.total_pendientes === 0) && (
+            <div style={{ background:"#FFEBEE", border:"1px solid #FFCDD2", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#C62828" }}>
+              {!preview
+                ? "❌ No se pudo consultar al servidor. Revisa la conexión e inténtalo de nuevo."
+                : (puntual
+                    ? "❌ Esta solicitud no está en estado Pendiente (ya fue asignada, finalizada o agrupada), por eso no se puede asignar."
+                    : "❌ No hay solicitudes pendientes para asignar.")}
+            </div>
+          )}
           {/* Botones */}
           <div style={{ display:"flex", gap:12, justifyContent:"flex-end" }}>
             <button onClick={onClose} style={{ padding:"10px 24px", borderRadius:8, border:"1px solid #DDD", background:"#FFF", fontSize:14, cursor:"pointer" }}>Cancelar</button>
