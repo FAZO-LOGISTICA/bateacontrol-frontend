@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const API_URL = "https://172d-200-50-126-98.ngrok-free.app";
+const API_URL = "https://5a0a-200-50-126-98.ngrok-free.app";
 const CLOUDINARY_CLOUD = "drhceyh7g";
 const CLOUDINARY_PRESET = "bateacontrol";
 
@@ -1007,15 +1007,46 @@ function descargarPDF(){
   const ventana = window.open("", "_blank", "width=1000,height=800,scrollbars=yes");
   if (ventana) { ventana.document.write(html); ventana.document.close(); }
 }
+// ── PESTAÑAS POR ETAPA: Pendientes / En curso / Realizadas ───────────────────
+function grupoEstado(estado) {
+  if (["completado","retirada","finalizada"].includes(estado)) return "realizadas";
+  if (["pendiente","critica","agrupada"].includes(estado) || !estado) return "pendientes";
+  return "en_curso";
+}
+function TabsEtapa({ valor, onChange, lista, color }) {
+  const cuenta = (g) => lista.filter(x => grupoEstado(x.estado) === g).length;
+  const tabs = [
+    { id:"pendientes", label:"⏳ Pendientes", sub:"por asignar" },
+    { id:"en_curso",   label:"🚧 En curso",   sub:"asignadas" },
+    { id:"realizadas", label:"✅ Realizadas", sub:"historial" },
+  ];
+  return (
+    <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={()=>onChange(t.id)} style={{
+          padding:"9px 18px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer",
+          background: valor===t.id ? color : "#FFF",
+          color: valor===t.id ? "#FFF" : "#555",
+          border: valor===t.id ? `2px solid ${color}` : "1px solid #DDD"
+        }}>
+          {t.label} <span style={{ opacity:.8 }}>({cuenta(t.id)})</span>
+          <span style={{ display:"block", fontSize:10, fontWeight:500, opacity:.8 }}>{t.sub}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering, onRecargar }) {
+  const [tab, setTab] = useState("pendientes");
   const [filtro, setFiltro] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
   const [editando, setEditando] = useState(null); // registro seleccionado para editar
   const [verDetalle, setVerDetalle] = useState(null); // registro seleccionado para ver detalle
   const filtradas = solicitudes.filter(s => {
+    const mT = grupoEstado(s.estado)===tab;
     const mE = filtro==="todos"||s.estado===filtro;
     const mB = busqueda===""||[s.nombre_vecino,s.direccion,s.folio,s.rut].some(v=>(v||"").toLowerCase().includes(busqueda.toLowerCase()));
-    return mE&&mB;
+    return mT&&mE&&mB;
   });
   const columnasExport = ["Folio","Nombre","Contacto","Dirección","Georreferencia","Lo Solicitado","Estado"];
   const filasExport = () => filtradas.map(s => [
@@ -1041,6 +1072,7 @@ function ViewBateas({ solicitudes, onNueva, loading, onAsignarBatea, clustering,
       <div style={{ background:"#F0F7FF", border:"1px solid #BBDEFB", borderRadius:8, padding:"8px 14px", fontSize:12, color:C.azul, marginBottom:16 }}>
         💡 Haz clic en cualquier fila para ver el detalle completo de la solicitud (lo que pide el vecino, contacto, ubicación, etc).
       </div>
+      <TabsEtapa valor={tab} onChange={(t)=>{ setTab(t); setFiltro("todos"); }} lista={solicitudes} color={C.azul} />
       <div style={{ display:"flex", gap:12, marginBottom:20 }}>
         <input placeholder="🔍 Buscar..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{ flex:1, padding:"10px 14px", borderRadius:8, border:"1px solid #DDD", fontSize:14, outline:"none" }} />
         <select value={filtro} onChange={e=>setFiltro(e.target.value)} style={{ padding:"10px 14px", borderRadius:8, border:"1px solid #DDD", fontSize:14, background:"#FFF", cursor:"pointer" }}>
@@ -1328,9 +1360,11 @@ function ViewVisitas({ visitas, onNueva, loading, onRecargar }) {
       else alert("❌ " + (data.detail||"Error"));
     } catch { alert("❌ Error de conexión"); }
   };
+  const [tab, setTab] = useState("pendientes");
+  const lista = visitas.filter(v => grupoEstado(v.estado)===tab);
   const fechaArchivo = new Date().toLocaleDateString("es-CL").replace(/\//g,"-");
   const columnasExport = ["Folio","Nombre","Contacto","Dirección","Georreferencia","Lo Solicitado","Estado"];
-  const filasExport = () => visitas.map(v => [
+  const filasExport = () => lista.map(v => [
     v.folio, v.nombre_vecino, v.telefono||"—", v.direccion,
     (v.latitud&&v.longitud) ? `${parseFloat(v.latitud).toFixed(6)}, ${parseFloat(v.longitud).toFixed(6)}` : "Sin coordenadas",
     v.motivo || "—", ESTADOS[v.estado]?.label || v.estado
@@ -1348,10 +1382,11 @@ function ViewVisitas({ visitas, onNueva, loading, onRecargar }) {
       <div style={{ background:"#F3E5F5", border:"1px solid #E1BEE7", borderRadius:8, padding:"10px 14px", fontSize:12, color:C.morado, marginBottom:18 }}>
         💡 Registra aquí las solicitudes que requieren una inspección en terreno antes de crear la solicitud definitiva de batea, desmalezado o arreglo de camino. Haz clic en una fila para ver el detalle completo.
       </div>
+      <TabsEtapa valor={tab} onChange={setTab} lista={visitas} color={C.morado} />
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
           columnas={["Folio","Vecino","Dirección","Motivo","F. Solicitud","F. Visita","Responsable","Estado","Acción"]}
-          filas={visitas.map((v,i) => ({
+          filas={lista.map((v,i) => ({
             key:v.id, critica:!!v.es_emergencia, par:i%2===0,
             onClick:()=>setVerDetalle(v),
             celdas:[
@@ -1744,9 +1779,11 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
   const [modalCerrarId, setModalCerrarId] = useState(null);
   const [editando, setEditando] = useState(null);
   const [verDetalle, setVerDetalle] = useState(null);
+  const [tab, setTab] = useState("pendientes");
+  const lista = desmalezados.filter(d => grupoEstado(d.estado)===tab);
   const fechaArchivo = new Date().toLocaleDateString("es-CL").replace(/\//g,"-");
   const columnasExport = ["Folio","Nombre","Contacto","Dirección","Georreferencia","Lo Solicitado","Estado"];
-  const filasExport = () => desmalezados.map(d => [
+  const filasExport = () => lista.map(d => [
     d.folio, d.nombre_solicitante, d.telefono||"—", d.direccion,
     (d.latitud&&d.longitud) ? `${parseFloat(d.latitud).toFixed(6)}, ${parseFloat(d.longitud).toFixed(6)}` : "Sin coordenadas",
     d.descripcion || d.observaciones || "—", ESTADOS[d.estado]?.label || d.estado
@@ -1786,10 +1823,11 @@ function ViewDesmalezados({ desmalezados, onNuevo, loading, onRecargar }) {
       <div style={{ background:"#E8F5E9", border:"1px solid #C8E6C9", borderRadius:8, padding:"8px 14px", fontSize:12, color:C.verde, marginBottom:16 }}>
         💡 Haz clic en cualquier fila para ver el detalle completo.
       </div>
+      <TabsEtapa valor={tab} onChange={setTab} lista={desmalezados} color={C.verde} />
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
           columnas={["Folio","Solicitante","Dirección","Estado","Inicio","Término","Días","Responsable","Fotos","Acción"]}
-          filas={desmalezados.map((d,i) => ({
+          filas={lista.map((d,i) => ({
             key:d.id, critica:!!d.es_emergencia, par:i%2===0,
             onClick:()=>setVerDetalle(d),
             celdas:[
@@ -1847,9 +1885,11 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
   const [modalCerrarId, setModalCerrarId] = useState(null);
   const [editando, setEditando] = useState(null);
   const [verDetalle, setVerDetalle] = useState(null);
+  const [tab, setTab] = useState("pendientes");
+  const lista = caminos.filter(c => grupoEstado(c.estado)===tab);
   const fechaArchivo = new Date().toLocaleDateString("es-CL").replace(/\//g,"-");
   const columnasExport = ["Folio","Nombre","Contacto","Dirección","Georreferencia","Lo Solicitado","Estado"];
-  const filasExport = () => caminos.map(c => [
+  const filasExport = () => lista.map(c => [
     c.folio, c.nombre_solicitante, c.telefono||"—", c.direccion,
     (c.latitud&&c.longitud) ? `${parseFloat(c.latitud).toFixed(6)}, ${parseFloat(c.longitud).toFixed(6)}` : "Sin coordenadas",
     c.descripcion_problema || "—", ESTADOS[c.estado]?.label || c.estado
@@ -1889,10 +1929,11 @@ function ViewCaminos({ caminos, onNuevo, loading, onRecargar }) {
       <div style={{ background:"#FFF3E0", border:"1px solid #FFE0B2", borderRadius:8, padding:"8px 14px", fontSize:12, color:C.naranja, marginBottom:16 }}>
         💡 Haz clic en cualquier fila para ver el detalle completo.
       </div>
+      <TabsEtapa valor={tab} onChange={setTab} lista={caminos} color={C.naranja} />
       {loading ? <div style={{ textAlign:"center", padding:40, color:"#888" }}>⏳ Cargando...</div> : (
         <TablaGenerica
           columnas={["Folio","Solicitante","Dirección","Tipo","Prioridad","Estado","Inicio","Término","Responsable","Fotos","Acción"]}
-          filas={caminos.map((c,i) => ({
+          filas={lista.map((c,i) => ({
             key:c.id, critica:c.prioridad==="urgente"||!!c.es_emergencia, par:i%2===0,
             onClick:()=>setVerDetalle(c),
             celdas:[
